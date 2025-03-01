@@ -13,10 +13,19 @@ import type { Database } from "../types/supabase"
 const supabaseUrl = process.env.PLASMO_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.PLASMO_PUBLIC_SUPABASE_ANON_KEY
 
+console.log(
+  "[DEBUG] supabase: Initializing with URL:",
+  supabaseUrl ? "exists" : "missing"
+)
+console.log(
+  "[DEBUG] supabase: Anon key:",
+  supabaseAnonKey ? "exists" : "missing"
+)
+
 // Validate environment variables
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error(
-    "Missing Supabase environment variables. Please check your .env file."
+    "[DEBUG] supabase: Missing Supabase environment variables. Please check your .env file."
   )
 }
 
@@ -29,20 +38,36 @@ if (!supabaseUrl || !supabaseAnonKey) {
  * - Storage
  * - Realtime subscriptions
  */
+console.log("[DEBUG] supabase: Creating Supabase client")
 export const supabase = createClient<Database>(
   supabaseUrl || "",
   supabaseAnonKey || ""
 )
+console.log("[DEBUG] supabase: Supabase client created")
 
 /**
  * Get the current authenticated user
  * @returns The current user or null if not authenticated
  */
 export const getCurrentUser = async () => {
-  const {
-    data: { user }
-  } = await supabase.auth.getUser()
-  return user
+  console.log("[DEBUG] supabase: Getting current user")
+  try {
+    const {
+      data: { user },
+      error
+    } = await supabase.auth.getUser()
+
+    if (error) {
+      console.error("[DEBUG] supabase: Error getting user:", error)
+      throw error
+    }
+
+    console.log("[DEBUG] supabase: Current user:", user ? "exists" : "null")
+    return user
+  } catch (error) {
+    console.error("[DEBUG] supabase: Exception getting user:", error)
+    throw error
+  }
 }
 
 /**
@@ -52,10 +77,24 @@ export const getCurrentUser = async () => {
  * @returns Authentication response
  */
 export const signInWithEmail = async (email: string, password: string) => {
-  return await supabase.auth.signInWithPassword({
-    email,
-    password
-  })
+  console.log("[DEBUG] supabase: Signing in with email")
+  try {
+    const response = await supabase.auth.signInWithPassword({
+      email,
+      password
+    })
+
+    if (response.error) {
+      console.error("[DEBUG] supabase: Sign in error:", response.error)
+    } else {
+      console.log("[DEBUG] supabase: Sign in successful")
+    }
+
+    return response
+  } catch (error) {
+    console.error("[DEBUG] supabase: Exception during sign in:", error)
+    throw error
+  }
 }
 
 /**
@@ -70,13 +109,27 @@ export const signUpWithEmail = async (
   password: string,
   metadata?: object
 ) => {
-  return await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: metadata
+  console.log("[DEBUG] supabase: Signing up with email")
+  try {
+    const response = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: metadata
+      }
+    })
+
+    if (response.error) {
+      console.error("[DEBUG] supabase: Sign up error:", response.error)
+    } else {
+      console.log("[DEBUG] supabase: Sign up successful")
     }
-  })
+
+    return response
+  } catch (error) {
+    console.error("[DEBUG] supabase: Exception during sign up:", error)
+    throw error
+  }
 }
 
 /**
@@ -84,7 +137,21 @@ export const signUpWithEmail = async (
  * @returns Void
  */
 export const signOut = async () => {
-  return await supabase.auth.signOut()
+  console.log("[DEBUG] supabase: Signing out")
+  try {
+    const response = await supabase.auth.signOut()
+
+    if (response.error) {
+      console.error("[DEBUG] supabase: Sign out error:", response.error)
+    } else {
+      console.log("[DEBUG] supabase: Sign out successful")
+    }
+
+    return response
+  } catch (error) {
+    console.error("[DEBUG] supabase: Exception during sign out:", error)
+    throw error
+  }
 }
 
 /**
@@ -98,4 +165,96 @@ export const onAuthStateChange = (
   return supabase.auth.onAuthStateChange(callback)
 }
 
-export default supabase
+/**
+ * Check if the Supabase client is properly initialized
+ * @returns True if the client is properly initialized, false otherwise
+ */
+export const isSupabaseInitialized = () => {
+  console.log("[DEBUG] supabase: Checking if Supabase is initialized")
+
+  // Check if URL and key are defined
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error("[DEBUG] supabase: Missing URL or key")
+    return false
+  }
+
+  // Check if client has required methods
+  if (
+    !supabase ||
+    !supabase.auth ||
+    typeof supabase.auth.getSession !== "function"
+  ) {
+    console.error("[DEBUG] supabase: Client not properly initialized")
+    return false
+  }
+
+  console.log("[DEBUG] supabase: Client appears to be properly initialized")
+  return true
+}
+
+/**
+ * Refresh the current session
+ * @returns The refreshed session
+ */
+export const refreshSession = async () => {
+  console.log("[DEBUG] supabase: Refreshing session")
+  try {
+    // First check if we have a session
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.getSession()
+
+    if (sessionError) {
+      console.error(
+        "[DEBUG] supabase: Error getting session for refresh:",
+        sessionError
+      )
+      throw sessionError
+    }
+
+    // If there's no active session, nothing to refresh
+    if (!sessionData.session) {
+      console.log("[DEBUG] supabase: No active session to refresh")
+      return { data: { session: null }, error: null }
+    }
+
+    // Attempt to refresh the session
+    const { data, error } = await supabase.auth.refreshSession()
+
+    if (error) {
+      console.error("[DEBUG] supabase: Session refresh error:", error)
+      console.error(
+        "[DEBUG] supabase: Error details:",
+        JSON.stringify({
+          message: error.message,
+          status: error.status,
+          name: error.name
+        })
+      )
+      throw error
+    }
+
+    console.log("[DEBUG] supabase: Session refreshed successfully")
+    return { data, error: null }
+  } catch (error) {
+    console.error("[DEBUG] supabase: Exception during session refresh:", error)
+    if (error instanceof Error) {
+      console.error("[DEBUG] supabase: Error details:", error.message)
+    }
+    throw error
+  }
+}
+
+// Export all functions and the client as default export as well
+// This provides flexibility in how the module is imported
+const supabaseUtils = {
+  supabase,
+  getCurrentUser,
+  signInWithEmail,
+  signUpWithEmail,
+  signOut,
+  onAuthStateChange,
+  isSupabaseInitialized,
+  refreshSession
+}
+
+export default supabaseUtils

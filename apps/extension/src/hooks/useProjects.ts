@@ -24,29 +24,18 @@ interface ProjectsState {
 }
 
 interface UseProjectsReturn extends ProjectsState {
-  fetchProjects: () => Promise<void>
-  fetchCollaborations: () => Promise<void>
-  createProject: (
-    name: string,
-    description?: string
-  ) => Promise<{ success: boolean; project?: Project; error?: string }>
-  updateProject: (
-    projectId: string,
-    updates: Partial<Project>
-  ) => Promise<{ success: boolean; error?: string }>
-  deleteProject: (
-    projectId: string
-  ) => Promise<{ success: boolean; error?: string }>
+  fetchProjects: () => Promise
+  fetchCollaborations: () => Promise
+  createProject: (name: string, description?: string) => Promise
+  updateProject: (projectId: string, updates: Partial) => Promise
+  deleteProject: (projectId: string) => Promise
   setCurrentProject: (project: Project | null) => void
   addCollaborator: (
     projectId: string,
     collaboratorId: string,
     role: string
-  ) => Promise<{ success: boolean; error?: string }>
-  removeCollaborator: (
-    projectId: string,
-    collaboratorId: string
-  ) => Promise<{ success: boolean; error?: string }>
+  ) => Promise
+  removeCollaborator: (projectId: string, collaboratorId: string) => Promise
 }
 
 /**
@@ -55,6 +44,10 @@ interface UseProjectsReturn extends ProjectsState {
  * @returns Projects state and methods
  */
 export function useProjects(userId: string | null): UseProjectsReturn {
+  console.log(
+    "[DEBUG] useProjects: Hook initialized with userId:",
+    userId ? "exists" : "null"
+  )
   const [state, setState] = useState<ProjectsState>({
     projects: [],
     collaborations: [],
@@ -65,10 +58,18 @@ export function useProjects(userId: string | null): UseProjectsReturn {
 
   // Load projects when userId changes
   useEffect(() => {
+    console.log(
+      "[DEBUG] useProjects: useEffect running, userId:",
+      userId ? "exists" : "null"
+    )
     if (userId) {
+      console.log(
+        "[DEBUG] useProjects: User exists, fetching projects and collaborations"
+      )
       fetchProjects()
       fetchCollaborations()
     } else {
+      console.log("[DEBUG] useProjects: No user, clearing projects state")
       setState((prev) => ({
         ...prev,
         projects: [],
@@ -82,35 +83,73 @@ export function useProjects(userId: string | null): UseProjectsReturn {
    * Fetch projects owned by the current user
    */
   const fetchProjects = async () => {
+    console.log("[DEBUG] useProjects: fetchProjects called")
     if (!userId) {
+      console.log("[DEBUG] useProjects: No userId, clearing projects")
       setState((prev) => ({ ...prev, projects: [] }))
       return
     }
 
     try {
+      console.log("[DEBUG] useProjects: Setting loading=true for fetchProjects")
       setState((prev) => ({ ...prev, loading: true, error: null }))
 
+      console.log("[DEBUG] useProjects: Querying Supabase for projects")
       const { data, error } = await supabase
         .from("projects")
         .select("*")
         .eq("owner_id", userId)
         .order("updated_at", { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error("[DEBUG] useProjects: Error fetching projects:", error)
+        console.error(
+          "[DEBUG] useProjects: Error details:",
+          JSON.stringify({
+            message: error.message,
+            code: error.code,
+            details: error.details,
+            hint: error.hint
+          })
+        )
+        throw error
+      }
 
+      console.log(
+        "[DEBUG] useProjects: Projects fetched successfully, count:",
+        data?.length || 0
+      )
       setState((prev) => ({
         ...prev,
         projects: data || [],
         loading: false
       }))
+      console.log(
+        "[DEBUG] useProjects: State updated after fetchProjects, loading=false"
+      )
     } catch (error) {
-      console.error("Error fetching projects:", error)
+      console.error("[DEBUG] useProjects: Exception in fetchProjects:", error)
+      console.error(
+        "[DEBUG] useProjects: Error details:",
+        JSON.stringify(
+          {
+            message: error instanceof Error ? error.message : "Unknown error",
+            name: error instanceof Error ? error.name : "Unknown",
+            stack: error instanceof Error ? error.stack : "No stack trace"
+          },
+          null,
+          2
+        )
+      )
       setState((prev) => ({
         ...prev,
         loading: false,
         error:
           error instanceof Error ? error : new Error("Failed to fetch projects")
       }))
+      console.log(
+        "[DEBUG] useProjects: State updated after fetchProjects error, loading=false"
+      )
     }
   }
 
@@ -118,33 +157,62 @@ export function useProjects(userId: string | null): UseProjectsReturn {
    * Fetch projects the user collaborates on
    */
   const fetchCollaborations = async () => {
+    console.log("[DEBUG] useProjects: fetchCollaborations called")
     if (!userId) {
+      console.log("[DEBUG] useProjects: No userId, clearing collaborations")
       setState((prev) => ({ ...prev, collaborations: [] }))
       return
     }
 
     try {
+      console.log(
+        "[DEBUG] useProjects: Setting loading=true for fetchCollaborations"
+      )
       setState((prev) => ({ ...prev, loading: true, error: null }))
 
       // First get the collaborations
+      console.log("[DEBUG] useProjects: Querying Supabase for collaborations")
       const { data: collaboratorData, error: collaboratorError } =
         await supabase
           .from("project_collaborators")
           .select("project_id")
           .eq("user_id", userId)
 
-      if (collaboratorError) throw collaboratorError
+      if (collaboratorError) {
+        console.error(
+          "[DEBUG] useProjects: Error fetching collaborations:",
+          collaboratorError
+        )
+        console.error(
+          "[DEBUG] useProjects: Error details:",
+          JSON.stringify({
+            message: collaboratorError.message,
+            code: collaboratorError.code,
+            details: collaboratorError.details,
+            hint: collaboratorError.hint
+          })
+        )
+        throw collaboratorError
+      }
 
       if (!collaboratorData || collaboratorData.length === 0) {
+        console.log("[DEBUG] useProjects: No collaborations found")
         setState((prev) => ({
           ...prev,
           collaborations: [],
           loading: false
         }))
+        console.log(
+          "[DEBUG] useProjects: State updated after empty collaborations, loading=false"
+        )
         return
       }
 
       // Then get the actual projects
+      console.log(
+        "[DEBUG] useProjects: Fetching collaboration projects, count:",
+        collaboratorData.length
+      )
       const projectIds = collaboratorData.map((c) => c.project_id)
       const { data: projectData, error: projectError } = await supabase
         .from("projects")
@@ -152,15 +220,52 @@ export function useProjects(userId: string | null): UseProjectsReturn {
         .in("id", projectIds)
         .order("updated_at", { ascending: false })
 
-      if (projectError) throw projectError
+      if (projectError) {
+        console.error(
+          "[DEBUG] useProjects: Error fetching collaboration projects:",
+          projectError
+        )
+        console.error(
+          "[DEBUG] useProjects: Error details:",
+          JSON.stringify({
+            message: projectError.message,
+            code: projectError.code,
+            details: projectError.details,
+            hint: projectError.hint
+          })
+        )
+        throw projectError
+      }
 
+      console.log(
+        "[DEBUG] useProjects: Collaboration projects fetched, count:",
+        projectData?.length || 0
+      )
       setState((prev) => ({
         ...prev,
         collaborations: projectData || [],
         loading: false
       }))
+      console.log(
+        "[DEBUG] useProjects: State updated after fetchCollaborations, loading=false"
+      )
     } catch (error) {
-      console.error("Error fetching collaborations:", error)
+      console.error(
+        "[DEBUG] useProjects: Exception in fetchCollaborations:",
+        error
+      )
+      console.error(
+        "[DEBUG] useProjects: Error details:",
+        JSON.stringify(
+          {
+            message: error instanceof Error ? error.message : "Unknown error",
+            name: error instanceof Error ? error.name : "Unknown",
+            stack: error instanceof Error ? error.stack : "No stack trace"
+          },
+          null,
+          2
+        )
+      )
       setState((prev) => ({
         ...prev,
         loading: false,
@@ -169,6 +274,9 @@ export function useProjects(userId: string | null): UseProjectsReturn {
             ? error
             : new Error("Failed to fetch collaborations")
       }))
+      console.log(
+        "[DEBUG] useProjects: State updated after fetchCollaborations error, loading=false"
+      )
     }
   }
 
@@ -233,10 +341,7 @@ export function useProjects(userId: string | null): UseProjectsReturn {
   /**
    * Update an existing project
    */
-  const updateProject = async (
-    projectId: string,
-    updates: Partial<Project>
-  ) => {
+  const updateProject = async (projectId: string, updates: Partial) => {
     if (!userId) {
       setState((prev) => ({
         ...prev,
@@ -380,10 +485,15 @@ export function useProjects(userId: string | null): UseProjectsReturn {
    * Set the current active project
    */
   const setCurrentProject = (project: Project | null) => {
+    console.log(
+      "[DEBUG] useProjects: setCurrentProject called",
+      project ? "with project" : "null"
+    )
     setState((prev) => ({
       ...prev,
       currentProject: project
     }))
+    console.log("[DEBUG] useProjects: Current project updated")
   }
 
   /**

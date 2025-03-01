@@ -7,20 +7,6 @@
 
 import React from "react"
 
-function IndexPopup() {
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        padding: 16,
-        width: 300,
-        height: 200
-      }}>
-      <h2>Papercut Extension</h2>
-      <p>This is a test popup.</p>
-    </div>
-  )
-}
+import IndexPopup from "./src/popup"
 
 export default IndexPopup
