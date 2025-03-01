@@ -7,8 +7,7 @@
 
 import React, { useState } from "react"
 
-import { useProjects } from "../hooks/useProjects"
-import { Project } from "../lib/types"
+import { useProjects, type Project } from "../hooks/useProjects"
 import { formatDate } from "../lib/utils"
 
 /**
@@ -31,7 +30,7 @@ export default function ProjectSelector({
     projects,
     currentProject,
     setCurrentProject,
-    isLoading,
+    loading,
     error,
     createProject,
     updateProject,
@@ -174,11 +173,11 @@ export default function ProjectSelector({
     <div className="project-selector">
       <h2>Your Projects</h2>
 
-      {error && <div className="error-message">{error}</div>}
+      {error && <div className="error-message">{error.message}</div>}
 
       {formError && <div className="error-message">{formError}</div>}
 
-      {isLoading ? (
+      {loading ? (
         <div className="loading">Loading projects...</div>
       ) : (
         <>
@@ -277,7 +276,7 @@ export default function ProjectSelector({
         </>
       )}
 
-      <style jsx>{`
+      <style>{`
         .project-selector {
           padding: 20px;
         }

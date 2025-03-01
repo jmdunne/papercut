@@ -21,7 +21,7 @@ interface LoginProps {
  */
 export default function Login({ onLoginSuccess }: LoginProps) {
   // Authentication hook
-  const { signInWithEmail, signUpWithEmail, isLoading, error } = useAuth()
+  const { signIn, signUp, loading: isLoading, error } = useAuth()
 
   // Form state
   const [email, setEmail] = useState("")
@@ -51,38 +51,27 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     try {
       if (isSignUp) {
         // Sign up
-        const result = await signUpWithEmail(email, password, fullName)
-
-        if (result?.success) {
-          if (result.needsEmailConfirmation) {
-            setFormError("Please check your email to confirm your account")
-          } else {
-            onLoginSuccess?.()
-          }
-        } else {
-          setFormError(result?.error || "Failed to sign up")
-        }
+        await signUp(email, password, { full_name: fullName })
+        onLoginSuccess?.()
       } else {
         // Sign in
-        const result = await signInWithEmail(email, password)
-
-        if (result?.success) {
-          onLoginSuccess?.()
-        } else {
-          setFormError(result?.error || "Failed to sign in")
-        }
+        await signIn(email, password)
+        onLoginSuccess?.()
       }
     } catch (err: any) {
       setFormError(err.message || "An error occurred")
     }
   }
 
+  // Convert error to string for display
+  const errorMessage = error instanceof Error ? error.message : String(error || '')
+
   return (
     <div className="login-container">
       <h2>{isSignUp ? "Create Account" : "Sign In"}</h2>
 
       {(formError || error) && (
-        <div className="error-message">{formError || error}</div>
+        <div className="error-message">{formError || errorMessage}</div>
       )}
 
       <form onSubmit={handleSubmit}>
@@ -140,7 +129,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         </button>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .login-container {
           padding: 20px;
           max-width: 400px;

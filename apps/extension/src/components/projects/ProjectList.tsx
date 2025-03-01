@@ -7,7 +7,7 @@
 import React, { useState } from "react"
 
 import { useProjectContext } from "../../contexts/ProjectContext"
-import { Project } from "../../hooks/useProjects"
+import type { Project } from "../../hooks/useProjects"
 
 /**
  * Project List Component Props
