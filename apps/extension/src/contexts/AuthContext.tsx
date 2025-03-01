@@ -5,8 +5,9 @@
  * It wraps the useAuth hook and makes it available through React Context.
  */
 
-import { Session, User } from "@supabase/supabase-js"
-import React, { createContext, ReactNode, useContext } from "react"
+import type { Session, User } from "@supabase/supabase-js"
+import React, { createContext, useContext } from "react"
+import type { ReactNode } from "react"
 
 import { useAuth } from "../hooks/useAuth"
 
@@ -65,8 +66,8 @@ export function useAuthContext() {
  * Otherwise, it renders a fallback component (e.g., login screen).
  */
 export function withAuth<P extends object>(
-  Component: React.ComponentType<P>,
-  FallbackComponent: React.ComponentType<{}>
+  Component: React.ComponentType,
+  FallbackComponent: React.ComponentType
 ) {
   return function WithAuthComponent(props: P) {
     const { user, loading } = useAuthContext()

@@ -5,7 +5,8 @@
  * that can be used to wrap the entire application.
  */
 
-import React, { ReactNode, useEffect } from "react"
+import React, { useEffect } from "react"
+import type { ReactNode } from "react"
 
 import { refreshSession } from "../utils/supabase"
 import { AuthProvider } from "./AuthContext"

@@ -45,10 +45,10 @@ interface AuthState {
 }
 
 interface UseAuthReturn extends AuthState {
-  signIn: (email: string, password: string) => Promise
-  signUp: (email: string, password: string, metadata?: object) => Promise
-  signOut: () => Promise
-  refreshUser: () => Promise
+  signIn: (email: string, password: string) => Promise<void>
+  signUp: (email: string, password: string, metadata?: object) => Promise<void>
+  signOut: () => Promise<void>
+  refreshUser: () => Promise<void>
 }
 
 /**
