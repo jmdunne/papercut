@@ -7,7 +7,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { useProjectContext } from './ProjectContext'
-import { useSupabase } from '../hooks/useSupabase'
+import { supabase } from '../utils/supabase'
 
 /**
  * Design Change Interface
@@ -82,7 +82,6 @@ interface DesignProviderProps {
  */
 export function DesignProvider({ children }: DesignProviderProps) {
   const { currentProject } = useProjectContext()
-  const { supabase } = useSupabase()
   
   const [changes, setChanges] = useState<DesignChange[]>([])
   const [snapshots, setSnapshots] = useState<Snapshot[]>([])
