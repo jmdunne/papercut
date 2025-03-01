@@ -5,9 +5,10 @@
  * It manages the state of design changes and provides methods for creating and applying snapshots.
  */
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
-import { useProjectContext } from './ProjectContext'
-import { supabase } from '../utils/supabase'
+import React, { createContext, useContext, useEffect, useState } from "react"
+
+import { supabase } from "../utils/supabase"
+import { useProjectContext } from "./ProjectContext"
 
 /**
  * Design Change Interface
@@ -50,17 +51,13 @@ interface DesignContextType {
     cssProperty: string,
     previousValue: string,
     newValue: string
-  ) => Promise<{ success: boolean; error?: string; change?: DesignChange }>
+  ) => Promise<{ success: boolean; change?: DesignChange; error?: string }>
   createSnapshot: (
     name: string,
     description?: string
-  ) => Promise<{ success: boolean; error?: string; snapshot?: Snapshot }>
-  applySnapshot: (
-    snapshotId: string
-  ) => Promise<{ success: boolean; error?: string }>
-  deleteSnapshot: (
-    snapshotId: string
-  ) => Promise<{ success: boolean; error?: string }>
+  ) => Promise<{ success: boolean; snapshot?: Snapshot; error?: string }>
+  applySnapshot: (snapshotId: string) => Promise<{ success: boolean; error?: string }>
+  deleteSnapshot: (snapshotId: string) => Promise<{ success: boolean; error?: string }>
 }
 
 /**
@@ -77,12 +74,12 @@ interface DesignProviderProps {
 
 /**
  * Design Provider Component
- * 
+ *
  * Provides design context to child components.
  */
 export function DesignProvider({ children }: DesignProviderProps) {
   const { currentProject } = useProjectContext()
-  
+
   const [changes, setChanges] = useState<DesignChange[]>([])
   const [snapshots, setSnapshots] = useState<Snapshot[]>([])
   const [loading, setLoading] = useState(false)
@@ -91,7 +88,7 @@ export function DesignProvider({ children }: DesignProviderProps) {
   /**
    * Fetch design changes for the current project
    */
-  const fetchChanges = async () => {
+  const fetchChanges = async (): Promise<void> => {
     if (!currentProject) {
       setChanges([])
       return
@@ -102,10 +99,10 @@ export function DesignProvider({ children }: DesignProviderProps) {
 
     try {
       const { data, error } = await supabase
-        .from('design_changes')
-        .select('*')
-        .eq('project_id', currentProject.id)
-        .order('created_at', { ascending: false })
+        .from("design_changes")
+        .select("*")
+        .eq("project_id", currentProject.id)
+        .order("created_at", { ascending: false })
 
       if (error) {
         throw new Error(error.message)
@@ -113,8 +110,10 @@ export function DesignProvider({ children }: DesignProviderProps) {
 
       setChanges(data || [])
     } catch (err) {
-      console.error('Error fetching design changes:', err)
-      setError(err instanceof Error ? err : new Error('Failed to fetch design changes'))
+      console.error("Error fetching design changes:", err)
+      setError(
+        err instanceof Error ? err : new Error("Failed to fetch design changes")
+      )
     } finally {
       setLoading(false)
     }
@@ -123,7 +122,7 @@ export function DesignProvider({ children }: DesignProviderProps) {
   /**
    * Fetch snapshots for the current project
    */
-  const fetchSnapshots = async () => {
+  const fetchSnapshots = async (): Promise<void> => {
     if (!currentProject) {
       setSnapshots([])
       return
@@ -134,10 +133,10 @@ export function DesignProvider({ children }: DesignProviderProps) {
 
     try {
       const { data, error } = await supabase
-        .from('snapshots')
-        .select('*')
-        .eq('project_id', currentProject.id)
-        .order('created_at', { ascending: false })
+        .from("design_snapshots")
+        .select("*")
+        .eq("project_id", currentProject.id)
+        .order("created_at", { ascending: false })
 
       if (error) {
         throw new Error(error.message)
@@ -145,8 +144,10 @@ export function DesignProvider({ children }: DesignProviderProps) {
 
       setSnapshots(data || [])
     } catch (err) {
-      console.error('Error fetching snapshots:', err)
-      setError(err instanceof Error ? err : new Error('Failed to fetch snapshots'))
+      console.error("Error fetching snapshots:", err)
+      setError(
+        err instanceof Error ? err : new Error("Failed to fetch snapshots")
+      )
     } finally {
       setLoading(false)
     }
@@ -160,21 +161,31 @@ export function DesignProvider({ children }: DesignProviderProps) {
     cssProperty: string,
     previousValue: string,
     newValue: string
-  ) => {
+  ): Promise<{ success: boolean; change?: DesignChange; error?: string }> => {
     if (!currentProject) {
-      return { success: false, error: 'No project selected' }
+      return { success: false, error: "No project selected" }
     }
 
     try {
+      // Get the current user ID
+      const {
+        data: { user }
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        return { success: false, error: "User not authenticated" }
+      }
+
       const { data, error } = await supabase
-        .from('design_changes')
+        .from("design_changes")
         .insert([
           {
             project_id: currentProject.id,
             element_selector: elementSelector,
             css_property: cssProperty,
             previous_value: previousValue,
-            new_value: newValue
+            new_value: newValue,
+            created_by: user.id
           }
         ])
         .select()
@@ -185,14 +196,15 @@ export function DesignProvider({ children }: DesignProviderProps) {
       }
 
       // Update local state
-      setChanges(prevChanges => [data, ...prevChanges])
+      setChanges((prevChanges) => [data, ...prevChanges])
 
       return { success: true, change: data }
     } catch (err) {
-      console.error('Error creating design change:', err)
-      return { 
-        success: false, 
-        error: err instanceof Error ? err.message : 'Failed to create design change' 
+      console.error("Error creating design change:", err)
+      return {
+        success: false,
+        error:
+          err instanceof Error ? err.message : "Failed to create design change"
       }
     }
   }
@@ -200,20 +212,24 @@ export function DesignProvider({ children }: DesignProviderProps) {
   /**
    * Create a new snapshot
    */
-  const createSnapshot = async (name: string, description?: string) => {
+  const createSnapshot = async (
+    name: string,
+    description?: string
+  ): Promise<{ success: boolean; snapshot?: Snapshot; error?: string }> => {
     if (!currentProject) {
-      return { success: false, error: 'No project selected' }
+      return { success: false, error: "No project selected" }
     }
 
     try {
       // First, create the snapshot record
       const { data: snapshot, error: snapshotError } = await supabase
-        .from('snapshots')
+        .from("design_snapshots")
         .insert([
           {
             project_id: currentProject.id,
             name,
-            description
+            description,
+            created_by: (await supabase.auth.getUser()).data.user?.id || ""
           }
         ])
         .select()
@@ -225,14 +241,18 @@ export function DesignProvider({ children }: DesignProviderProps) {
 
       // Then, create snapshot_changes records for all current changes
       if (changes.length > 0) {
-        const snapshotChanges = changes.map(change => ({
+        const snapshotChanges = changes.map((change) => ({
           snapshot_id: snapshot.id,
           design_change_id: change.id
         }))
 
         const { error: relationsError } = await supabase
-          .from('snapshot_changes')
-          .insert(snapshotChanges)
+          .from("design_changes")
+          .update({ snapshot_id: snapshot.id })
+          .in(
+            "id",
+            changes.map((change) => change.id)
+          )
 
         if (relationsError) {
           throw new Error(relationsError.message)
@@ -240,14 +260,14 @@ export function DesignProvider({ children }: DesignProviderProps) {
       }
 
       // Update local state
-      setSnapshots(prevSnapshots => [snapshot, ...prevSnapshots])
+      setSnapshots((prevSnapshots) => [snapshot, ...prevSnapshots])
 
       return { success: true, snapshot }
     } catch (err) {
-      console.error('Error creating snapshot:', err)
-      return { 
-        success: false, 
-        error: err instanceof Error ? err.message : 'Failed to create snapshot' 
+      console.error("Error creating snapshot:", err)
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Failed to create snapshot"
       }
     }
   }
@@ -255,77 +275,71 @@ export function DesignProvider({ children }: DesignProviderProps) {
   /**
    * Apply a snapshot to the current project
    */
-  const applySnapshot = async (snapshotId: string) => {
+  const applySnapshot = async (snapshotId: string): Promise<{ success: boolean; error?: string }> => {
     if (!currentProject) {
-      return { success: false, error: 'No project selected' }
+      return { success: false, error: "No project selected" }
     }
 
     try {
       // Get all changes associated with this snapshot
-      const { data: snapshotChanges, error: relationsError } = await supabase
-        .from('snapshot_changes')
-        .select('design_change_id')
-        .eq('snapshot_id', snapshotId)
-
-      if (relationsError) {
-        throw new Error(relationsError.message)
-      }
-
-      if (!snapshotChanges || snapshotChanges.length === 0) {
-        return { success: true } // Empty snapshot, nothing to apply
-      }
-
-      // Get the actual change records
-      const changeIds = snapshotChanges.map(sc => sc.design_change_id)
       const { data: changes, error: changesError } = await supabase
-        .from('design_changes')
-        .select('*')
-        .in('id', changeIds)
+        .from("design_changes")
+        .select("*")
+        .eq("snapshot_id", snapshotId)
 
       if (changesError) {
         throw new Error(changesError.message)
       }
 
+      if (!changes || changes.length === 0) {
+        return { success: true } // Empty snapshot, nothing to apply
+      }
+
       // TODO: Apply these changes to the DOM
       // This would typically be done by sending a message to the content script
       // For now, we'll just log them
-      console.log('Changes to apply:', changes)
+      console.log("Changes to apply:", changes)
 
       // Get the current active tab
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      const [tab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true
+      })
 
       if (tab.id) {
         // Send message to content script to apply changes
-        await chrome.tabs.sendMessage(tab.id, {
-          type: 'APPLY_SNAPSHOT',
-          changes
-        }).catch(async (err) => {
-          console.log('Content script not loaded, injecting...', err)
-          
-          // If content script is not loaded, inject it
-          await chrome.scripting.executeScript({
-            target: { tabId: tab.id! },
-            func: (changesData) => {
-              window.postMessage(
-                { 
-                  source: 'papercut-extension', 
-                  command: 'applySnapshot',
-                  changes: changesData
-                },
-                '*'
-              )
-            },
-            args: [changes]
+        await chrome.tabs
+          .sendMessage(tab.id, {
+            type: "APPLY_SNAPSHOT",
+            changes
           })
-        })
+          .catch(async (err) => {
+            console.log("Content script not loaded, injecting...", err)
+
+            // If content script is not loaded, inject it
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id! },
+              func: (changesData) => {
+                window.postMessage(
+                  {
+                    source: "papercut-extension",
+                    command: "applySnapshot",
+                    changes: changesData
+                  },
+                  "*"
+                )
+              },
+              args: [changes]
+            })
+          })
       }
 
       return { success: true }
     } catch (err) {
-      console.error('Error applying snapshot:', err)
-      return { 
-        success: false, 
-        error: err instanceof Error ? err.message : 'Failed to apply snapshot' 
+      console.error("Error applying snapshot:", err)
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Failed to apply snapshot"
       }
     }
   }
@@ -333,13 +347,13 @@ export function DesignProvider({ children }: DesignProviderProps) {
   /**
    * Delete a snapshot
    */
-  const deleteSnapshot = async (snapshotId: string) => {
+  const deleteSnapshot = async (snapshotId: string): Promise<{ success: boolean; error?: string }> => {
     try {
       // First delete the snapshot_changes relations
       const { error: relationsError } = await supabase
-        .from('snapshot_changes')
-        .delete()
-        .eq('snapshot_id', snapshotId)
+        .from("design_changes")
+        .update({ snapshot_id: null })
+        .eq("snapshot_id", snapshotId)
 
       if (relationsError) {
         throw new Error(relationsError.message)
@@ -347,25 +361,25 @@ export function DesignProvider({ children }: DesignProviderProps) {
 
       // Then delete the snapshot itself
       const { error: snapshotError } = await supabase
-        .from('snapshots')
+        .from("design_snapshots")
         .delete()
-        .eq('id', snapshotId)
+        .eq("id", snapshotId)
 
       if (snapshotError) {
         throw new Error(snapshotError.message)
       }
 
       // Update local state
-      setSnapshots(prevSnapshots => 
-        prevSnapshots.filter(snapshot => snapshot.id !== snapshotId)
+      setSnapshots((prevSnapshots) =>
+        prevSnapshots.filter((snapshot) => snapshot.id !== snapshotId)
       )
 
       return { success: true }
     } catch (err) {
-      console.error('Error deleting snapshot:', err)
-      return { 
-        success: false, 
-        error: err instanceof Error ? err.message : 'Failed to delete snapshot' 
+      console.error("Error deleting snapshot:", err)
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Failed to delete snapshot"
       }
     }
   }
@@ -395,9 +409,7 @@ export function DesignProvider({ children }: DesignProviderProps) {
   }
 
   return (
-    <DesignContext.Provider value={value}>
-      {children}
-    </DesignContext.Provider>
+    <DesignContext.Provider value={value}>{children}</DesignContext.Provider>
   )
 }
 
@@ -407,7 +419,7 @@ export function DesignProvider({ children }: DesignProviderProps) {
 export function useDesignContext() {
   const context = useContext(DesignContext)
   if (context === undefined) {
-    throw new Error('useDesignContext must be used within a DesignProvider')
+    throw new Error("useDesignContext must be used within a DesignProvider")
   }
   return context
 }

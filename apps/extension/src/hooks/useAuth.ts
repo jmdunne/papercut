@@ -5,7 +5,7 @@
  * including sign in, sign up, sign out, and auth state management.
  */
 
-import { Session, User } from "@supabase/supabase-js"
+import type { Session, User } from "@supabase/supabase-js"
 import { useEffect, useState } from "react"
 
 // Try to import using the relative path first
@@ -45,10 +45,10 @@ interface AuthState {
 }
 
 interface UseAuthReturn extends AuthState {
-  signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, metadata?: object) => Promise<void>
-  signOut: () => Promise<void>
-  refreshUser: () => Promise<void>
+  signIn: (email: string, password: string) => Promise
+  signUp: (email: string, password: string, metadata?: object) => Promise
+  signOut: () => Promise
+  refreshUser: () => Promise
 }
 
 /**

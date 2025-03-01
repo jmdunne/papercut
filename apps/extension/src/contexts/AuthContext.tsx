@@ -1,3 +1,4 @@
+;
 /**
  * Authentication Context
  *
@@ -5,11 +6,14 @@
  * It wraps the useAuth hook and makes it available through React Context.
  */
 
-import type { Session, User } from "@supabase/supabase-js"
-import React, { createContext, useContext } from "react"
-import type { ReactNode } from "react"
+import type { Session, User } from "@supabase/supabase-js";
+import React, { createContext, useContext } from "react";
+import type { ReactNode } from "react";
 
-import { useAuth } from "../hooks/useAuth"
+
+
+import { useAuth } from "../hooks/useAuth";
+
 
 // Define the shape of the context
 interface AuthContextType {
@@ -17,8 +21,8 @@ interface AuthContextType {
   session: Session | null
   loading: boolean
   error: Error | null
-  signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, metadata?: object) => Promise<void>
+  signIn: (email: string, password: string) => Promise<Session | null>
+  signUp: (email: string, password: string, metadata?: object) => Promise<Session | null>
   signOut: () => Promise<void>
   refreshUser: () => Promise<void>
 }

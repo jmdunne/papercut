@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 
-import { SelectedElement } from "../lib/types"
+import type { SelectedElement } from "../lib/types"
 import { createSelectedElement } from "../lib/utils"
 
 /**

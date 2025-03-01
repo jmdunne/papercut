@@ -82,7 +82,7 @@ export function useProjects(userId: string | null): UseProjectsReturn {
   /**
    * Fetch projects owned by the current user
    */
-  const fetchProjects = async () => {
+  const fetchProjects = async (): Promise => {
     console.log("[DEBUG] useProjects: fetchProjects called")
     if (!userId) {
       console.log("[DEBUG] useProjects: No userId, clearing projects")
@@ -156,7 +156,7 @@ export function useProjects(userId: string | null): UseProjectsReturn {
   /**
    * Fetch projects the user collaborates on
    */
-  const fetchCollaborations = async () => {
+  const fetchCollaborations = async (): Promise => {
     console.log("[DEBUG] useProjects: fetchCollaborations called")
     if (!userId) {
       console.log("[DEBUG] useProjects: No userId, clearing collaborations")
@@ -283,7 +283,7 @@ export function useProjects(userId: string | null): UseProjectsReturn {
   /**
    * Create a new project
    */
-  const createProject = async (name: string, description?: string) => {
+  const createProject = async (name: string, description?: string): Promise => {
     if (!userId) {
       setState((prev) => ({
         ...prev,
@@ -341,7 +341,10 @@ export function useProjects(userId: string | null): UseProjectsReturn {
   /**
    * Update an existing project
    */
-  const updateProject = async (projectId: string, updates: Partial) => {
+  const updateProject = async (
+    projectId: string,
+    updates: Partial
+  ): Promise => {
     if (!userId) {
       setState((prev) => ({
         ...prev,
@@ -410,7 +413,7 @@ export function useProjects(userId: string | null): UseProjectsReturn {
   /**
    * Delete a project
    */
-  const deleteProject = async (projectId: string) => {
+  const deleteProject = async (projectId: string): Promise => {
     if (!userId) {
       setState((prev) => ({
         ...prev,
@@ -503,7 +506,7 @@ export function useProjects(userId: string | null): UseProjectsReturn {
     projectId: string,
     collaboratorId: string,
     role: string
-  ) => {
+  ): Promise => {
     if (!userId) {
       setState((prev) => ({
         ...prev,
@@ -572,7 +575,7 @@ export function useProjects(userId: string | null): UseProjectsReturn {
   const removeCollaborator = async (
     projectId: string,
     collaboratorId: string
-  ) => {
+  ): Promise => {
     if (!userId) {
       setState((prev) => ({
         ...prev,
