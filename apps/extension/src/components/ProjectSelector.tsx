@@ -65,16 +65,11 @@ export default function ProjectSelector({
     }
 
     try {
-      const result = await createProject(projectName, projectDescription)
+      await createProject(projectName, projectDescription)
 
-      if (result.success) {
-        setIsCreating(false)
-        setProjectName("")
-        setProjectDescription("")
-        onProjectSelected?.(result.project)
-      } else {
-        setFormError(result.error || "Failed to create project")
-      }
+      setIsCreating(false)
+      setProjectName("")
+      setProjectDescription("")
     } catch (err: any) {
       setFormError(err.message || "An error occurred")
     }
@@ -98,18 +93,14 @@ export default function ProjectSelector({
     }
 
     try {
-      const result = await updateProject(currentProject.id, {
+      await updateProject(currentProject.id, {
         name: projectName,
         description: projectDescription
       })
 
-      if (result.success) {
-        setIsEditing(false)
-        setProjectName("")
-        setProjectDescription("")
-      } else {
-        setFormError(result.error || "Failed to update project")
-      }
+      setIsEditing(false)
+      setProjectName("")
+      setProjectDescription("")
     } catch (err: any) {
       setFormError(err.message || "An error occurred")
     }
@@ -128,11 +119,7 @@ export default function ProjectSelector({
     }
 
     try {
-      const result = await deleteProject(projectId)
-
-      if (!result.success) {
-        setFormError(result.error || "Failed to delete project")
-      }
+      await deleteProject(projectId)
     } catch (err: any) {
       setFormError(err.message || "An error occurred")
     }

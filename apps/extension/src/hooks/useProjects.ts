@@ -24,18 +24,18 @@ interface ProjectsState {
 }
 
 interface UseProjectsReturn extends ProjectsState {
-  fetchProjects: () => Promise
-  fetchCollaborations: () => Promise
-  createProject: (name: string, description?: string) => Promise
-  updateProject: (projectId: string, updates: Partial) => Promise
-  deleteProject: (projectId: string) => Promise
+  fetchProjects: () => Promise<void>
+  fetchCollaborations: () => Promise<void>
+  createProject: (name: string, description?: string) => Promise<void>
+  updateProject: (projectId: string, updates: Partial<Project>) => Promise<void>
+  deleteProject: (projectId: string) => Promise<void>
   setCurrentProject: (project: Project | null) => void
   addCollaborator: (
     projectId: string,
     collaboratorId: string,
     role: string
-  ) => Promise
-  removeCollaborator: (projectId: string, collaboratorId: string) => Promise
+  ) => Promise<void>
+  removeCollaborator: (projectId: string, collaboratorId: string) => Promise<void>
 }
 
 /**
@@ -82,7 +82,7 @@ export function useProjects(userId: string | null): UseProjectsReturn {
   /**
    * Fetch projects owned by the current user
    */
-  const fetchProjects = async (): Promise => {
+  const fetchProjects = async (): Promise<void> => {
     console.log("[DEBUG] useProjects: fetchProjects called")
     if (!userId) {
       console.log("[DEBUG] useProjects: No userId, clearing projects")
@@ -156,7 +156,7 @@ export function useProjects(userId: string | null): UseProjectsReturn {
   /**
    * Fetch projects the user collaborates on
    */
-  const fetchCollaborations = async (): Promise => {
+  const fetchCollaborations = async (): Promise<void> => {
     console.log("[DEBUG] useProjects: fetchCollaborations called")
     if (!userId) {
       console.log("[DEBUG] useProjects: No userId, clearing collaborations")
@@ -283,16 +283,16 @@ export function useProjects(userId: string | null): UseProjectsReturn {
   /**
    * Create a new project
    */
-  const createProject = async (name: string, description?: string): Promise => {
+  const createProject = async (
+    name: string,
+    description?: string
+  ): Promise<void> => {
     if (!userId) {
       setState((prev) => ({
         ...prev,
         error: new Error("You must be logged in to create a project")
       }))
-      return {
-        success: false,
-        error: "Not authenticated"
-      }
+      return
     }
 
     try {
@@ -320,8 +320,6 @@ export function useProjects(userId: string | null): UseProjectsReturn {
         currentProject: data,
         loading: false
       }))
-
-      return { success: true, project: data }
     } catch (error) {
       console.error("Error creating project:", error)
       setState((prev) => ({
@@ -330,12 +328,7 @@ export function useProjects(userId: string | null): UseProjectsReturn {
         error:
           error instanceof Error ? error : new Error("Failed to create project")
       }))
-      return {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to create project"
       }
-    }
   }
 
   /**
@@ -343,17 +336,14 @@ export function useProjects(userId: string | null): UseProjectsReturn {
    */
   const updateProject = async (
     projectId: string,
-    updates: Partial
-  ): Promise => {
+    updates: Partial<Project>
+  ): Promise<void> => {
     if (!userId) {
       setState((prev) => ({
         ...prev,
         error: new Error("You must be logged in to update a project")
       }))
-      return {
-        success: false,
-        error: "Not authenticated"
-      }
+      return
     }
 
     try {
@@ -392,8 +382,6 @@ export function useProjects(userId: string | null): UseProjectsReturn {
           loading: false
         }
       })
-
-      return { success: true }
     } catch (error) {
       console.error("Error updating project:", error)
       setState((prev) => ({
@@ -402,27 +390,19 @@ export function useProjects(userId: string | null): UseProjectsReturn {
         error:
           error instanceof Error ? error : new Error("Failed to update project")
       }))
-      return {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to update project"
-      }
     }
   }
 
   /**
    * Delete a project
    */
-  const deleteProject = async (projectId: string): Promise => {
+  const deleteProject = async (projectId: string): Promise<void> => {
     if (!userId) {
       setState((prev) => ({
         ...prev,
         error: new Error("You must be logged in to delete a project")
       }))
-      return {
-        success: false,
-        error: "Not authenticated"
-      }
+      return
     }
 
     try {
@@ -466,8 +446,6 @@ export function useProjects(userId: string | null): UseProjectsReturn {
           loading: false
         }
       })
-
-      return { success: true }
     } catch (error) {
       console.error("Error deleting project:", error)
       setState((prev) => ({
@@ -476,11 +454,6 @@ export function useProjects(userId: string | null): UseProjectsReturn {
         error:
           error instanceof Error ? error : new Error("Failed to delete project")
       }))
-      return {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to delete project"
-      }
     }
   }
 
@@ -506,16 +479,13 @@ export function useProjects(userId: string | null): UseProjectsReturn {
     projectId: string,
     collaboratorId: string,
     role: string
-  ): Promise => {
+  ): Promise<void> => {
     if (!userId) {
       setState((prev) => ({
         ...prev,
         error: new Error("You must be logged in to add collaborators")
       }))
-      return {
-        success: false,
-        error: "Not authenticated"
-      }
+      return
     }
 
     try {
@@ -550,7 +520,6 @@ export function useProjects(userId: string | null): UseProjectsReturn {
       if (error) throw error
 
       setState((prev) => ({ ...prev, loading: false }))
-      return { success: true }
     } catch (error) {
       console.error("Error adding collaborator:", error)
       setState((prev) => ({
@@ -561,11 +530,6 @@ export function useProjects(userId: string | null): UseProjectsReturn {
             ? error
             : new Error("Failed to add collaborator")
       }))
-      return {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to add collaborator"
-      }
     }
   }
 
@@ -575,16 +539,13 @@ export function useProjects(userId: string | null): UseProjectsReturn {
   const removeCollaborator = async (
     projectId: string,
     collaboratorId: string
-  ): Promise => {
+  ): Promise<void> => {
     if (!userId) {
       setState((prev) => ({
         ...prev,
         error: new Error("You must be logged in to remove collaborators")
       }))
-      return {
-        success: false,
-        error: "Not authenticated"
-      }
+      return
     }
 
     try {
@@ -615,7 +576,6 @@ export function useProjects(userId: string | null): UseProjectsReturn {
       if (error) throw error
 
       setState((prev) => ({ ...prev, loading: false }))
-      return { success: true }
     } catch (error) {
       console.error("Error removing collaborator:", error)
       setState((prev) => ({
@@ -626,13 +586,6 @@ export function useProjects(userId: string | null): UseProjectsReturn {
             ? error
             : new Error("Failed to remove collaborator")
       }))
-      return {
-        success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to remove collaborator"
-      }
     }
   }
 
