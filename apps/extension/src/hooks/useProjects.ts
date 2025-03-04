@@ -5,7 +5,7 @@
  * It handles creating, updating, deleting, and fetching projects.
  */
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 import type { Database } from "../types/supabase"
 import { supabase } from "../utils/supabase"
@@ -35,7 +35,10 @@ interface UseProjectsReturn extends ProjectsState {
     collaboratorId: string,
     role: string
   ) => Promise<void>
-  removeCollaborator: (projectId: string, collaboratorId: string) => Promise<void>
+  removeCollaborator: (
+    projectId: string,
+    collaboratorId: string
+  ) => Promise<void>
 }
 
 /**
@@ -44,10 +47,12 @@ interface UseProjectsReturn extends ProjectsState {
  * @returns Projects state and methods
  */
 export function useProjects(userId: string | null): UseProjectsReturn {
+  // Add a counter to track hook initialization (for debugging)
   console.log(
     "[DEBUG] useProjects: Hook initialized with userId:",
     userId ? "exists" : "null"
   )
+
   const [state, setState] = useState<ProjectsState>({
     projects: [],
     collaborations: [],
@@ -82,7 +87,7 @@ export function useProjects(userId: string | null): UseProjectsReturn {
   /**
    * Fetch projects owned by the current user
    */
-  const fetchProjects = async (): Promise<void> => {
+  const fetchProjects = useCallback(async (): Promise<void> => {
     console.log("[DEBUG] useProjects: fetchProjects called")
     if (!userId) {
       console.log("[DEBUG] useProjects: No userId, clearing projects")
@@ -151,12 +156,12 @@ export function useProjects(userId: string | null): UseProjectsReturn {
         "[DEBUG] useProjects: State updated after fetchProjects error, loading=false"
       )
     }
-  }
+  }, [userId])
 
   /**
    * Fetch projects the user collaborates on
    */
-  const fetchCollaborations = async (): Promise<void> => {
+  const fetchCollaborations = useCallback(async (): Promise<void> => {
     console.log("[DEBUG] useProjects: fetchCollaborations called")
     if (!userId) {
       console.log("[DEBUG] useProjects: No userId, clearing collaborations")
@@ -278,7 +283,7 @@ export function useProjects(userId: string | null): UseProjectsReturn {
         "[DEBUG] useProjects: State updated after fetchCollaborations error, loading=false"
       )
     }
-  }
+  }, [userId])
 
   /**
    * Create a new project
@@ -328,7 +333,7 @@ export function useProjects(userId: string | null): UseProjectsReturn {
         error:
           error instanceof Error ? error : new Error("Failed to create project")
       }))
-      }
+    }
   }
 
   /**
@@ -460,7 +465,7 @@ export function useProjects(userId: string | null): UseProjectsReturn {
   /**
    * Set the current active project
    */
-  const setCurrentProject = (project: Project | null) => {
+  const setCurrentProject = useCallback((project: Project | null) => {
     console.log(
       "[DEBUG] useProjects: setCurrentProject called",
       project ? "with project" : "null"
@@ -470,7 +475,7 @@ export function useProjects(userId: string | null): UseProjectsReturn {
       currentProject: project
     }))
     console.log("[DEBUG] useProjects: Current project updated")
-  }
+  }, [])
 
   /**
    * Add a collaborator to a project

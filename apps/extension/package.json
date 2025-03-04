@@ -7,7 +7,11 @@
   "scripts": {
     "dev": "plasmo dev",
     "build": "plasmo build",
-    "package": "plasmo package"
+    "package": "plasmo package",
+    "test:auth": "ts-node src/utils/run-auth-tests.ts",
+    "test:auth:basic": "ts-node src/utils/run-auth-tests.ts --test=basic",
+    "test:auth:suite": "ts-node src/utils/run-auth-tests.ts --test=suite",
+    "test:auth:stress": "ts-node src/utils/run-auth-tests.ts --test=stress"
   },
   "dependencies": {
     "@plasmohq/storage": "^1.15.0",
@@ -27,6 +31,7 @@
     "@types/react": "18.2.48",
     "@types/react-dom": "18.2.18",
     "prettier": "3.2.4",
+    "ts-node": "^10.9.2",
     "typescript": "5.3.3"
   },
   "manifest": {

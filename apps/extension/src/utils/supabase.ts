@@ -9,6 +9,35 @@ import { createClient } from "@supabase/supabase-js"
 
 import type { Database } from "../types/supabase"
 
+/**
+ * Utility function to add timeout to promises
+ * @param promise The promise to add timeout to
+ * @param timeoutMs Timeout in milliseconds
+ * @returns Promise with timeout
+ */
+export const withTimeout = async <T>(
+  promise: Promise<T>,
+  timeoutMs = 5000,
+  operationName = "Operation"
+): Promise<T> => {
+  let timeoutId: NodeJS.Timeout
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`${operationName} timed out after ${timeoutMs}ms`))
+    }, timeoutMs)
+  })
+
+  try {
+    const result = await Promise.race([promise, timeoutPromise])
+    clearTimeout(timeoutId)
+    return result
+  } catch (error) {
+    clearTimeout(timeoutId)
+    throw error
+  }
+}
+
 // Environment variables are prefixed with PLASMO_PUBLIC_ to make them accessible in the extension
 const supabaseUrl = process.env.PLASMO_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.PLASMO_PUBLIC_SUPABASE_ANON_KEY
@@ -55,7 +84,7 @@ export const getCurrentUser = async () => {
     const {
       data: { user },
       error
-    } = await supabase.auth.getUser()
+    } = await withTimeout(supabase.auth.getUser(), 3000, "Get current user")
 
     if (error) {
       console.error("[DEBUG] supabase: Error getting user:", error)
@@ -200,8 +229,11 @@ export const refreshSession = async () => {
   console.log("[DEBUG] supabase: Refreshing session")
   try {
     // First check if we have a session
-    const { data: sessionData, error: sessionError } =
-      await supabase.auth.getSession()
+    const { data: sessionData, error: sessionError } = await withTimeout(
+      supabase.auth.getSession(),
+      3000,
+      "Get session for refresh"
+    )
 
     if (sessionError) {
       console.error(
@@ -218,7 +250,11 @@ export const refreshSession = async () => {
     }
 
     // Attempt to refresh the session
-    const { data, error } = await supabase.auth.refreshSession()
+    const { data, error } = await withTimeout(
+      supabase.auth.refreshSession(),
+      5000,
+      "Session refresh"
+    )
 
     if (error) {
       console.error("[DEBUG] supabase: Session refresh error:", error)

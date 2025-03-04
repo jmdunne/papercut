@@ -8,6 +8,8 @@
 import type { Session, User } from "@supabase/supabase-js"
 import { useEffect, useState } from "react"
 
+// Import performance monitoring
+import { measureAsyncPerformance } from "../utils/performance"
 // Try to import using the relative path first
 import supabaseDefault, {
   getCurrentUser,
@@ -49,6 +51,7 @@ interface UseAuthReturn extends AuthState {
   signUp: (email: string, password: string, metadata?: object) => Promise
   signOut: () => Promise
   refreshUser: () => Promise
+  resetAuthState: () => void
 }
 
 /**
@@ -64,6 +67,19 @@ export function useAuth(): UseAuthReturn {
     error: null
   })
 
+  /**
+   * Reset authentication state to unauthenticated
+   */
+  const resetAuthState = () => {
+    console.log("[DEBUG] useAuth: Resetting auth state")
+    setState({
+      user: null,
+      session: null,
+      loading: false,
+      error: null
+    })
+  }
+
   // Initialize auth state on mount
   useEffect(() => {
     console.log("[DEBUG] useAuth: useEffect running")
@@ -71,57 +87,104 @@ export function useAuth(): UseAuthReturn {
     const initializeAuth = async () => {
       console.log("[DEBUG] useAuth: Starting auth initialization")
       try {
-        // Check if Supabase is properly initialized
-        const isInitialized = checkSupabaseInit()
-        if (!isInitialized) {
-          console.error(
-            "[DEBUG] useAuth: Supabase client not properly initialized"
-          )
-          setState({
-            user: null,
-            session: null,
-            loading: false,
-            error: new Error("Supabase client not properly initialized")
-          })
-          return
-        }
+        await measureAsyncPerformance(async () => {
+          // Check if Supabase is properly initialized
+          const isInitialized = checkSupabaseInit()
+          if (!isInitialized) {
+            console.error(
+              "[DEBUG] useAuth: Supabase client not properly initialized"
+            )
+            setState({
+              user: null,
+              session: null,
+              loading: false,
+              error: new Error("Supabase client not properly initialized")
+            })
+            return
+          }
 
-        // Get initial session
-        console.log("[DEBUG] useAuth: Getting session")
-        const {
-          data: { session },
-          error: sessionError
-        } = await supabaseClient.auth.getSession()
+          // Get initial session
+          console.log("[DEBUG] useAuth: Getting session")
+          const {
+            data: { session },
+            error: sessionError
+          } = await supabaseClient.auth.getSession()
 
-        if (sessionError) {
-          console.error("[DEBUG] useAuth: Error getting session", sessionError)
-          throw sessionError
-        }
+          if (sessionError) {
+            console.error(
+              "[DEBUG] useAuth: Error getting session",
+              sessionError
+            )
+            throw sessionError
+          }
 
-        console.log(
-          "[DEBUG] useAuth: Session result",
-          session ? "Session exists" : "No session"
-        )
-
-        // Get user if session exists
-        let user = null
-        if (session) {
-          console.log("[DEBUG] useAuth: Getting current user")
-          user = await getUser()
           console.log(
-            "[DEBUG] useAuth: User result",
-            user ? "User exists" : "No user"
+            "[DEBUG] useAuth: Session result",
+            session ? "Session exists" : "No session"
           )
-        }
 
-        console.log("[DEBUG] useAuth: Setting state with loading=false")
-        setState({
-          user,
-          session,
-          loading: false,
-          error: null
-        })
-        console.log("[DEBUG] useAuth: State updated, loading=false")
+          // If session exists, try to refresh it first
+          let refreshedSession = session
+          if (session) {
+            console.log(
+              "[DEBUG] useAuth: Found existing session, attempting refresh"
+            )
+            try {
+              const { data: refreshData, error: refreshError } =
+                await refreshSession()
+              if (refreshError) {
+                console.error(
+                  "[DEBUG] useAuth: Session refresh failed",
+                  refreshError
+                )
+              } else if (refreshData.session) {
+                console.log("[DEBUG] useAuth: Session refreshed successfully")
+                refreshedSession = refreshData.session
+              }
+            } catch (refreshErr) {
+              console.error(
+                "[DEBUG] useAuth: Exception during session refresh",
+                refreshErr
+              )
+              // Continue with existing session even if refresh fails
+            }
+          }
+
+          // Get user if session exists
+          let user = null
+          if (refreshedSession) {
+            console.log("[DEBUG] useAuth: Getting current user")
+            try {
+              user = await getUser()
+              console.log(
+                "[DEBUG] useAuth: User result",
+                user ? "User exists" : "No user"
+              )
+            } catch (userError) {
+              console.error("[DEBUG] useAuth: Error getting user", userError)
+              // If we can't get the user, reset auth state
+              setState({
+                user: null,
+                session: null,
+                loading: false,
+                error:
+                  userError instanceof Error
+                    ? userError
+                    : new Error("Failed to get user after session refresh")
+              })
+              return
+            }
+          }
+
+          console.log("[DEBUG] useAuth: Setting state with loading=false")
+          setState({
+            user,
+            session: refreshedSession,
+            loading: false,
+            error: null
+          })
+          console.log("[DEBUG] useAuth: State updated, loading=false")
+        }, "Auth Initialization")
       } catch (error) {
         console.error("[DEBUG] useAuth: Error during initialization", error)
         setState({
@@ -286,6 +349,7 @@ export function useAuth(): UseAuthReturn {
     signIn,
     signUp,
     signOut,
-    refreshUser
+    refreshUser,
+    resetAuthState
   }
 }

@@ -14,6 +14,8 @@ import { ProjectList } from "../components/projects/ProjectList"
 import { AppProvider } from "../contexts/AppProvider"
 import { useAuthContext } from "../contexts/AuthContext"
 import { useProjectContext } from "../contexts/ProjectContext"
+import { testAuthFlow } from "../utils/auth-test"
+import { runAuthStressTest, runAuthTestSuite } from "../utils/auth-test-suite"
 import { testSupabase } from "../utils/test-supabase"
 
 import "../../style.css"
@@ -26,7 +28,12 @@ import "../../style.css"
  */
 function PopupContent() {
   console.log("[DEBUG] PopupContent: Rendering")
-  const { user, loading: authLoading, error: authError } = useAuthContext()
+  const {
+    user,
+    loading: authLoading,
+    error: authError,
+    resetAuthState
+  } = useAuthContext()
   const {
     currentProject,
     loading: projectLoading,
@@ -39,6 +46,17 @@ function PopupContent() {
   const [retryCount, setRetryCount] = useState(0)
   const [testResults, setTestResults] = useState(null)
   const [isTestingSupabase, setIsTestingSupabase] = useState(false)
+  const [authTestResults, setAuthTestResults] = useState(null)
+  const [isTestingAuth, setIsTestingAuth] = useState(false)
+  const [authTestSuiteResults, setAuthTestSuiteResults] = useState(null)
+  const [isRunningSuite, setIsRunningSuite] = useState(false)
+  const [stressTestResults, setStressTestResults] = useState(null)
+  const [isRunningStressTest, setIsRunningStressTest] = useState(false)
+  const [testCredentials, setTestCredentials] = useState({
+    email: "",
+    password: ""
+  })
+  const [showCredentialsForm, setShowCredentialsForm] = useState(false)
 
   console.log("[DEBUG] PopupContent: Auth loading:", authLoading)
   console.log("[DEBUG] PopupContent: Project loading:", projectLoading)
@@ -83,6 +101,115 @@ function PopupContent() {
     }
   }
 
+  // Handle auth flow testing
+  const handleTestAuthFlow = async () => {
+    console.log("[DEBUG] PopupContent: Testing auth flow")
+    setIsTestingAuth(true)
+    setAuthTestResults(null)
+
+    try {
+      const results = await testAuthFlow()
+      console.log("[DEBUG] PopupContent: Auth flow test results:", results)
+      setAuthTestResults(results)
+    } catch (error) {
+      console.error("[DEBUG] PopupContent: Error testing auth flow:", error)
+      setAuthTestResults({
+        hasStoredSession: false,
+        sessionValid: false,
+        refreshSuccessful: false,
+        userRetrieved: false,
+        timings: {},
+        errors: [error instanceof Error ? error.message : String(error)]
+      })
+    } finally {
+      setIsTestingAuth(false)
+    }
+  }
+
+  // Handle auth test suite
+  const handleRunTestSuite = async () => {
+    console.log("[DEBUG] PopupContent: Running auth test suite")
+    setIsRunningSuite(true)
+    setAuthTestSuiteResults(null)
+
+    try {
+      const options = {
+        timeoutMs: 10000
+      }
+
+      // Add credentials if provided
+      if (testCredentials.email && testCredentials.password) {
+        options["credentials"] = testCredentials
+        options["runSignInTests"] = true
+      }
+
+      const results = await runAuthTestSuite(options)
+      console.log("[DEBUG] PopupContent: Auth test suite results:", results)
+      setAuthTestSuiteResults(results)
+    } catch (error) {
+      console.error(
+        "[DEBUG] PopupContent: Error running auth test suite:",
+        error
+      )
+      setAuthTestSuiteResults({
+        overallSuccess: false,
+        tests: [],
+        summary: {
+          total: 0,
+          passed: 0,
+          failed: 0,
+          skipped: 0
+        },
+        error: error instanceof Error ? error.message : String(error)
+      })
+    } finally {
+      setIsRunningSuite(false)
+    }
+  }
+
+  // Handle stress test
+  const handleRunStressTest = async () => {
+    if (!testCredentials.email || !testCredentials.password) {
+      console.error(
+        "[DEBUG] PopupContent: Credentials required for stress test"
+      )
+      return
+    }
+
+    console.log("[DEBUG] PopupContent: Running auth stress test")
+    setIsRunningStressTest(true)
+    setStressTestResults(null)
+
+    try {
+      const results = await runAuthStressTest({
+        credentials: testCredentials,
+        iterations: 3,
+        delayBetweenMs: 1000
+      })
+      console.log("[DEBUG] PopupContent: Auth stress test results:", results)
+      setStressTestResults(results)
+    } catch (error) {
+      console.error(
+        "[DEBUG] PopupContent: Error running auth stress test:",
+        error
+      )
+      setStressTestResults({
+        success: false,
+        iterations: 0,
+        completedIterations: 0,
+        failures: [
+          {
+            iteration: 0,
+            error: error instanceof Error ? error.message : String(error)
+          }
+        ],
+        averageDuration: 0
+      })
+    } finally {
+      setIsRunningStressTest(false)
+    }
+  }
+
   // Handle retry functionality
   const handleRetry = async () => {
     console.log("[DEBUG] PopupContent: Retry attempt", retryCount + 1)
@@ -108,6 +235,24 @@ function PopupContent() {
     }
   }
 
+  // Ensure sequential loading - only fetch projects after auth is complete
+  useEffect(() => {
+    console.log(
+      "[DEBUG] PopupContent: Auth state changed, user:",
+      user ? "exists" : "null",
+      "authLoading:",
+      authLoading
+    )
+
+    if (user && !authLoading) {
+      console.log(
+        "[DEBUG] PopupContent: User authenticated and auth loading complete, fetching projects"
+      )
+      fetchProjects()
+      fetchCollaborations()
+    }
+  }, [user, authLoading])
+
   // Add a timeout to prevent infinite loading
   useEffect(() => {
     if (loading) {
@@ -125,6 +270,13 @@ function PopupContent() {
       }
     }
   }, [loading])
+
+  // Handle going to login screen
+  const handleGoToLogin = () => {
+    console.log("[DEBUG] PopupContent: Going to login screen")
+    resetAuthState()
+    setForceRender(false)
+  }
 
   // Show loading state
   if (loading && !forceRender) {
@@ -157,26 +309,41 @@ function PopupContent() {
             Project error: {projectError.message}
           </p>
         )}
-        <button
-          onClick={handleRetry}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-          {retryCount > 0 ? `Retry (${retryCount}/3)` : "Retry"}
-        </button>
+        <div className="flex space-x-2">
+          <button
+            onClick={handleRetry}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+            {retryCount > 0 ? `Retry (${retryCount}/3)` : "Retry"}
+          </button>
 
-        {/* Supabase Test Button */}
-        <div className="mt-4">
+          <button
+            onClick={handleGoToLogin}
+            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
+            Go to Login
+          </button>
+        </div>
+
+        {/* Test Buttons */}
+        <div className="mt-4 flex space-x-2">
           <button
             onClick={handleTestSupabase}
             disabled={isTestingSupabase}
             className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-400">
-            {isTestingSupabase ? "Testing..." : "Test Supabase Connection"}
+            {isTestingSupabase ? "Testing..." : "Test Supabase"}
+          </button>
+
+          <button
+            onClick={handleTestAuthFlow}
+            disabled={isTestingAuth}
+            className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 disabled:bg-gray-400">
+            {isTestingAuth ? "Testing..." : "Test Auth Flow"}
           </button>
         </div>
 
-        {/* Test Results */}
+        {/* Supabase Test Results */}
         {testResults && (
           <div className="mt-4 p-3 border rounded bg-gray-50 w-full">
-            <h3 className="font-medium mb-2">Test Results:</h3>
+            <h3 className="font-medium mb-2">Supabase Test Results:</h3>
             <ul className="text-xs">
               <li
                 className={
@@ -202,19 +369,256 @@ function PopupContent() {
                 }>
                 Database: {testResults.database ? "✓" : "✗"}
               </li>
+              {testResults.errors && testResults.errors.length > 0 && (
+                <li className="text-red-600 mt-2">
+                  <strong>Errors:</strong>
+                  <ul className="ml-2">
+                    {testResults.errors.map((err, i) => (
+                      <li key={i}>{err}</li>
+                    ))}
+                  </ul>
+                </li>
+              )}
             </ul>
-            {testResults.errors && testResults.errors.length > 0 && (
+          </div>
+        )}
+
+        {/* Auth Test Results */}
+        {authTestResults && (
+          <div className="mt-4 p-3 border rounded bg-gray-50 w-full">
+            <h3 className="font-medium mb-2">Auth Flow Test Results:</h3>
+            <ul className="text-xs">
+              <li
+                className={
+                  authTestResults.hasStoredSession
+                    ? "text-green-600"
+                    : "text-red-600"
+                }>
+                Stored Session: {authTestResults.hasStoredSession ? "✓" : "✗"}
+              </li>
+              <li
+                className={
+                  authTestResults.sessionValid
+                    ? "text-green-600"
+                    : "text-red-600"
+                }>
+                Session Valid: {authTestResults.sessionValid ? "✓" : "✗"}
+              </li>
+              <li
+                className={
+                  authTestResults.refreshSuccessful
+                    ? "text-green-600"
+                    : "text-red-600"
+                }>
+                Session Refresh: {authTestResults.refreshSuccessful ? "✓" : "✗"}
+              </li>
+              <li
+                className={
+                  authTestResults.userRetrieved
+                    ? "text-green-600"
+                    : "text-red-600"
+                }>
+                User Retrieved: {authTestResults.userRetrieved ? "✓" : "✗"}
+              </li>
+
+              {/* Timings */}
+              {authTestResults.timings &&
+                Object.keys(authTestResults.timings).length > 0 && (
+                  <div className="mt-2">
+                    <h4 className="font-medium">Timings:</h4>
+                    <ul className="text-xs">
+                      {Object.entries(authTestResults.timings).map(
+                        ([key, value]) => (
+                          <li key={key}>
+                            {key}:{" "}
+                            {typeof value === "number"
+                              ? value.toFixed(2)
+                              : String(value)}
+                            ms
+                          </li>
+                        )
+                      )}
+                    </ul>
+                  </div>
+                )}
+
+              {/* Errors */}
+              {authTestResults.errors && authTestResults.errors.length > 0 && (
+                <li className="text-red-600 mt-2">
+                  <strong>Errors:</strong>
+                  <ul className="ml-2">
+                    {authTestResults.errors.map((err, i) => (
+                      <li key={i}>{err}</li>
+                    ))}
+                  </ul>
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
+
+        {/* Auth Test Suite Section */}
+        <div className="mt-4 w-full">
+          <div className="flex flex-col space-y-2">
+            <button
+              onClick={() => setShowCredentialsForm(!showCredentialsForm)}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+              {showCredentialsForm
+                ? "Hide Test Credentials"
+                : "Show Test Credentials"}
+            </button>
+
+            {showCredentialsForm && (
+              <div className="p-3 border rounded bg-gray-50">
+                <h3 className="font-medium mb-2">Test Credentials</h3>
+                <p className="text-xs mb-2">
+                  Enter credentials to enable sign-in/out tests
+                </p>
+                <div className="flex flex-col space-y-2">
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={testCredentials.email}
+                    onChange={(e) =>
+                      setTestCredentials((prev) => ({
+                        ...prev,
+                        email: e.target.value
+                      }))
+                    }
+                    className="px-2 py-1 border rounded text-sm"
+                  />
+                  <input
+                    type="password"
+                    placeholder="Password"
+                    value={testCredentials.password}
+                    onChange={(e) =>
+                      setTestCredentials((prev) => ({
+                        ...prev,
+                        password: e.target.value
+                      }))
+                    }
+                    className="px-2 py-1 border rounded text-sm"
+                  />
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={handleRunTestSuite}
+              disabled={isRunningSuite}
+              className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 disabled:bg-gray-400">
+              {isRunningSuite ? "Running Test Suite..." : "Run Auth Test Suite"}
+            </button>
+
+            <button
+              onClick={handleRunStressTest}
+              disabled={
+                isRunningStressTest ||
+                !testCredentials.email ||
+                !testCredentials.password
+              }
+              className="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 disabled:bg-gray-400">
+              {isRunningStressTest
+                ? "Running Stress Test..."
+                : "Run Auth Stress Test"}
+            </button>
+          </div>
+
+          {/* Auth Test Suite Results */}
+          {authTestSuiteResults && (
+            <div className="mt-4 p-3 border rounded bg-gray-50">
+              <h3 className="font-medium mb-2">
+                Test Suite Results:
+                <span
+                  className={
+                    authTestSuiteResults.overallSuccess
+                      ? "text-green-600 ml-2"
+                      : "text-red-600 ml-2"
+                  }>
+                  {authTestSuiteResults.overallSuccess ? "PASSED" : "FAILED"}
+                </span>
+              </h3>
+
+              <div className="text-xs mb-2">
+                <p>Total: {authTestSuiteResults.summary.total}</p>
+                <p className="text-green-600">
+                  Passed: {authTestSuiteResults.summary.passed}
+                </p>
+                <p className="text-red-600">
+                  Failed: {authTestSuiteResults.summary.failed}
+                </p>
+                <p>
+                  Duration:{" "}
+                  {(authTestSuiteResults.totalDuration / 1000).toFixed(2)}s
+                </p>
+              </div>
+
               <div className="mt-2">
-                <h4 className="font-medium text-xs text-red-600">Errors:</h4>
-                <ul className="text-xs text-red-600">
-                  {testResults.errors.map((error, index) => (
-                    <li key={index}>{error}</li>
+                <h4 className="font-medium">Test Details:</h4>
+                <ul className="text-xs mt-1">
+                  {authTestSuiteResults.tests.map((test, index) => (
+                    <li key={index} className="mb-1">
+                      <span
+                        className={
+                          test.success ? "text-green-600" : "text-red-600"
+                        }>
+                        {test.success ? "✓" : "✗"}
+                      </span>{" "}
+                      <strong>{test.name}</strong> (
+                      {(test.duration / 1000).toFixed(2)}s)
+                      {test.error && (
+                        <p className="text-red-600 ml-4">{test.error}</p>
+                      )}
+                    </li>
                   ))}
                 </ul>
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
+
+          {/* Stress Test Results */}
+          {stressTestResults && (
+            <div className="mt-4 p-3 border rounded bg-gray-50">
+              <h3 className="font-medium mb-2">
+                Stress Test Results:
+                <span
+                  className={
+                    stressTestResults.success
+                      ? "text-green-600 ml-2"
+                      : "text-red-600 ml-2"
+                  }>
+                  {stressTestResults.success ? "PASSED" : "FAILED"}
+                </span>
+              </h3>
+
+              <div className="text-xs mb-2">
+                <p>Iterations: {stressTestResults.iterations}</p>
+                <p className="text-green-600">
+                  Completed: {stressTestResults.completedIterations}
+                </p>
+                <p className="text-red-600">
+                  Failed: {stressTestResults.failures.length}
+                </p>
+                <p>
+                  Avg Duration: {stressTestResults.averageDuration.toFixed(2)}ms
+                </p>
+              </div>
+
+              {stressTestResults.failures.length > 0 && (
+                <div className="mt-2">
+                  <h4 className="font-medium text-red-600">Failures:</h4>
+                  <ul className="text-xs text-red-600">
+                    {stressTestResults.failures.map((failure, index) => (
+                      <li key={index}>
+                        Iteration {failure.iteration}: {failure.error}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     )
   }
@@ -265,9 +669,10 @@ function PopupContent() {
                   Database: {testResults.database ? "✓" : "✗"}
                 </li>
               </ul>
+
               {testResults.errors && testResults.errors.length > 0 && (
                 <div className="mt-2">
-                  <h4 className="font-medium text-xs text-red-600">Errors:</h4>
+                  <h4 className="font-medium text-red-600">Errors:</h4>
                   <ul className="text-xs text-red-600">
                     {testResults.errors.map((error, index) => (
                       <li key={index}>{error}</li>
@@ -277,6 +682,172 @@ function PopupContent() {
               )}
             </div>
           )}
+
+          {/* Auth Test Suite Section */}
+          <div className="mt-4 w-full">
+            <div className="flex flex-col space-y-2">
+              <button
+                onClick={() => setShowCredentialsForm(!showCredentialsForm)}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                {showCredentialsForm
+                  ? "Hide Test Credentials"
+                  : "Show Test Credentials"}
+              </button>
+
+              {showCredentialsForm && (
+                <div className="p-3 border rounded bg-gray-50">
+                  <h3 className="font-medium mb-2">Test Credentials</h3>
+                  <p className="text-xs mb-2">
+                    Enter credentials to enable sign-in/out tests
+                  </p>
+                  <div className="flex flex-col space-y-2">
+                    <input
+                      type="email"
+                      placeholder="Email"
+                      value={testCredentials.email}
+                      onChange={(e) =>
+                        setTestCredentials((prev) => ({
+                          ...prev,
+                          email: e.target.value
+                        }))
+                      }
+                      className="px-2 py-1 border rounded text-sm"
+                    />
+                    <input
+                      type="password"
+                      placeholder="Password"
+                      value={testCredentials.password}
+                      onChange={(e) =>
+                        setTestCredentials((prev) => ({
+                          ...prev,
+                          password: e.target.value
+                        }))
+                      }
+                      className="px-2 py-1 border rounded text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={handleRunTestSuite}
+                disabled={isRunningSuite}
+                className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 disabled:bg-gray-400">
+                {isRunningSuite
+                  ? "Running Test Suite..."
+                  : "Run Auth Test Suite"}
+              </button>
+
+              <button
+                onClick={handleRunStressTest}
+                disabled={
+                  isRunningStressTest ||
+                  !testCredentials.email ||
+                  !testCredentials.password
+                }
+                className="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 disabled:bg-gray-400">
+                {isRunningStressTest
+                  ? "Running Stress Test..."
+                  : "Run Auth Stress Test"}
+              </button>
+            </div>
+
+            {/* Auth Test Suite Results */}
+            {authTestSuiteResults && (
+              <div className="mt-4 p-3 border rounded bg-gray-50">
+                <h3 className="font-medium mb-2">
+                  Test Suite Results:
+                  <span
+                    className={
+                      authTestSuiteResults.overallSuccess
+                        ? "text-green-600 ml-2"
+                        : "text-red-600 ml-2"
+                    }>
+                    {authTestSuiteResults.overallSuccess ? "PASSED" : "FAILED"}
+                  </span>
+                </h3>
+
+                <div className="text-xs mb-2">
+                  <p>Total: {authTestSuiteResults.summary.total}</p>
+                  <p className="text-green-600">
+                    Passed: {authTestSuiteResults.summary.passed}
+                  </p>
+                  <p className="text-red-600">
+                    Failed: {authTestSuiteResults.summary.failed}
+                  </p>
+                  <p>
+                    Duration:{" "}
+                    {(authTestSuiteResults.totalDuration / 1000).toFixed(2)}s
+                  </p>
+                </div>
+
+                <div className="mt-2">
+                  <h4 className="font-medium">Test Details:</h4>
+                  <ul className="text-xs mt-1">
+                    {authTestSuiteResults.tests.map((test, index) => (
+                      <li key={index} className="mb-1">
+                        <span
+                          className={
+                            test.success ? "text-green-600" : "text-red-600"
+                          }>
+                          {test.success ? "✓" : "✗"}
+                        </span>{" "}
+                        <strong>{test.name}</strong> (
+                        {(test.duration / 1000).toFixed(2)}s)
+                        {test.error && (
+                          <p className="text-red-600 ml-4">{test.error}</p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {/* Stress Test Results */}
+            {stressTestResults && (
+              <div className="mt-4 p-3 border rounded bg-gray-50">
+                <h3 className="font-medium mb-2">
+                  Stress Test Results:
+                  <span
+                    className={
+                      stressTestResults.success
+                        ? "text-green-600 ml-2"
+                        : "text-red-600 ml-2"
+                    }>
+                    {stressTestResults.success ? "PASSED" : "FAILED"}
+                  </span>
+                </h3>
+
+                <div className="text-xs mb-2">
+                  <p>Iterations: {stressTestResults.iterations}</p>
+                  <p className="text-green-600">
+                    Completed: {stressTestResults.completedIterations}
+                  </p>
+                  <p className="text-red-600">
+                    Failed: {stressTestResults.failures.length}
+                  </p>
+                  <p>
+                    Avg Duration: {stressTestResults.averageDuration.toFixed(2)}
+                    ms
+                  </p>
+                </div>
+
+                {stressTestResults.failures.length > 0 && (
+                  <div className="mt-2">
+                    <h4 className="font-medium text-red-600">Failures:</h4>
+                    <ul className="text-xs text-red-600">
+                      {stressTestResults.failures.map((failure, index) => (
+                        <li key={index}>
+                          Iteration {failure.iteration}: {failure.error}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     )
@@ -312,51 +883,241 @@ function PopupContent() {
         )}
       </div>
 
-      {/* Supabase Test Button for authenticated users */}
-      <div className="mt-6 pt-4 border-t border-gray-200">
-        <button
-          onClick={handleTestSupabase}
-          disabled={isTestingSupabase}
-          className="w-full px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-400">
-          {isTestingSupabase ? "Testing..." : "Test Supabase Connection"}
-        </button>
+      {/* Auth Testing Section for authenticated users */}
+      <div className="mt-4 border-t pt-4">
+        <h3 className="font-medium mb-2">Authentication Testing</h3>
+        <div className="flex flex-col space-y-2">
+          <button
+            onClick={handleTestAuthFlow}
+            disabled={isTestingAuth}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400">
+            {isTestingAuth ? "Testing..." : "Test Auth Flow"}
+          </button>
 
-        {/* Test Results */}
-        {testResults && (
+          <button
+            onClick={handleRunTestSuite}
+            disabled={isRunningSuite}
+            className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 disabled:bg-gray-400">
+            {isRunningSuite ? "Running Test Suite..." : "Run Auth Test Suite"}
+          </button>
+
+          {/* Show credentials form for stress test */}
+          <button
+            onClick={() => setShowCredentialsForm(!showCredentialsForm)}
+            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
+            {showCredentialsForm
+              ? "Hide Credentials"
+              : "Show Credentials for Stress Test"}
+          </button>
+
+          {showCredentialsForm && (
+            <div className="p-3 border rounded bg-gray-50">
+              <div className="flex flex-col space-y-2">
+                <input
+                  type="email"
+                  placeholder="Email"
+                  value={testCredentials.email}
+                  onChange={(e) =>
+                    setTestCredentials((prev) => ({
+                      ...prev,
+                      email: e.target.value
+                    }))
+                  }
+                  className="px-2 py-1 border rounded text-sm"
+                />
+                <input
+                  type="password"
+                  placeholder="Password"
+                  value={testCredentials.password}
+                  onChange={(e) =>
+                    setTestCredentials((prev) => ({
+                      ...prev,
+                      password: e.target.value
+                    }))
+                  }
+                  className="px-2 py-1 border rounded text-sm"
+                />
+                <button
+                  onClick={handleRunStressTest}
+                  disabled={
+                    isRunningStressTest ||
+                    !testCredentials.email ||
+                    !testCredentials.password
+                  }
+                  className="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 disabled:bg-gray-400">
+                  {isRunningStressTest
+                    ? "Running Stress Test..."
+                    : "Run Auth Stress Test"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Auth Test Results */}
+        {authTestResults && (
           <div className="mt-4 p-3 border rounded bg-gray-50">
-            <h3 className="font-medium mb-2">Test Results:</h3>
+            <h3 className="font-medium mb-2">Auth Flow Test Results:</h3>
             <ul className="text-xs">
               <li
                 className={
-                  testResults.initialized ? "text-green-600" : "text-red-600"
+                  authTestResults.hasStoredSession
+                    ? "text-green-600"
+                    : "text-red-600"
                 }>
-                Initialization: {testResults.initialized ? "✓" : "✗"}
+                Has Stored Session:{" "}
+                {authTestResults.hasStoredSession ? "✓" : "✗"}
               </li>
               <li
                 className={
-                  testResults.connection ? "text-green-600" : "text-red-600"
+                  authTestResults.sessionValid
+                    ? "text-green-600"
+                    : "text-red-600"
                 }>
-                Connection: {testResults.connection ? "✓" : "✗"}
+                Session Valid: {authTestResults.sessionValid ? "✓" : "✗"}
               </li>
               <li
                 className={
-                  testResults.auth ? "text-green-600" : "text-red-600"
+                  authTestResults.refreshSuccessful
+                    ? "text-green-600"
+                    : "text-red-600"
                 }>
-                Authentication: {testResults.auth ? "✓" : "✗"}
+                Refresh Successful:{" "}
+                {authTestResults.refreshSuccessful ? "✓" : "✗"}
               </li>
               <li
                 className={
-                  testResults.database ? "text-green-600" : "text-red-600"
+                  authTestResults.userRetrieved
+                    ? "text-green-600"
+                    : "text-red-600"
                 }>
-                Database: {testResults.database ? "✓" : "✗"}
+                User Retrieved: {authTestResults.userRetrieved ? "✓" : "✗"}
               </li>
             </ul>
-            {testResults.errors && testResults.errors.length > 0 && (
+
+            {/* Timing Information */}
+            {authTestResults.timings &&
+              Object.keys(authTestResults.timings).length > 0 && (
+                <div className="mt-2">
+                  <h4 className="font-medium">Timings:</h4>
+                  <ul className="text-xs">
+                    {Object.entries(authTestResults.timings).map(
+                      ([key, value]) => (
+                        <li key={key}>
+                          {key}:{" "}
+                          {typeof value === "number"
+                            ? value.toFixed(2)
+                            : String(value)}
+                          ms
+                        </li>
+                      )
+                    )}
+                  </ul>
+                </div>
+              )}
+
+            {/* Errors */}
+            {authTestResults.errors && authTestResults.errors.length > 0 && (
               <div className="mt-2">
-                <h4 className="font-medium text-xs text-red-600">Errors:</h4>
+                <h4 className="font-medium text-red-600">Errors:</h4>
                 <ul className="text-xs text-red-600">
-                  {testResults.errors.map((error, index) => (
+                  {authTestResults.errors.map((error, index) => (
                     <li key={index}>{error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Auth Test Suite Results */}
+        {authTestSuiteResults && (
+          <div className="mt-4 p-3 border rounded bg-gray-50">
+            <h3 className="font-medium mb-2">
+              Test Suite Results:
+              <span
+                className={
+                  authTestSuiteResults.overallSuccess
+                    ? "text-green-600 ml-2"
+                    : "text-red-600 ml-2"
+                }>
+                {authTestSuiteResults.overallSuccess ? "PASSED" : "FAILED"}
+              </span>
+            </h3>
+
+            <div className="text-xs mb-2">
+              <p>Total: {authTestSuiteResults.summary.total}</p>
+              <p className="text-green-600">
+                Passed: {authTestSuiteResults.summary.passed}
+              </p>
+              <p className="text-red-600">
+                Failed: {authTestSuiteResults.summary.failed}
+              </p>
+              <p>
+                Duration:{" "}
+                {(authTestSuiteResults.totalDuration / 1000).toFixed(2)}s
+              </p>
+            </div>
+
+            <div className="mt-2">
+              <h4 className="font-medium">Test Details:</h4>
+              <ul className="text-xs mt-1">
+                {authTestSuiteResults.tests.map((test, index) => (
+                  <li key={index} className="mb-1">
+                    <span
+                      className={
+                        test.success ? "text-green-600" : "text-red-600"
+                      }>
+                      {test.success ? "✓" : "✗"}
+                    </span>{" "}
+                    <strong>{test.name}</strong> (
+                    {(test.duration / 1000).toFixed(2)}s)
+                    {test.error && (
+                      <p className="text-red-600 ml-4">{test.error}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* Stress Test Results */}
+        {stressTestResults && (
+          <div className="mt-4 p-3 border rounded bg-gray-50">
+            <h3 className="font-medium mb-2">
+              Stress Test Results:
+              <span
+                className={
+                  stressTestResults.success
+                    ? "text-green-600 ml-2"
+                    : "text-red-600 ml-2"
+                }>
+                {stressTestResults.success ? "PASSED" : "FAILED"}
+              </span>
+            </h3>
+
+            <div className="text-xs mb-2">
+              <p>Iterations: {stressTestResults.iterations}</p>
+              <p className="text-green-600">
+                Completed: {stressTestResults.completedIterations}
+              </p>
+              <p className="text-red-600">
+                Failed: {stressTestResults.failures.length}
+              </p>
+              <p>
+                Avg Duration: {stressTestResults.averageDuration.toFixed(2)}ms
+              </p>
+            </div>
+
+            {stressTestResults.failures.length > 0 && (
+              <div className="mt-2">
+                <h4 className="font-medium text-red-600">Failures:</h4>
+                <ul className="text-xs text-red-600">
+                  {stressTestResults.failures.map((failure, index) => (
+                    <li key={index}>
+                      Iteration {failure.iteration}: {failure.error}
+                    </li>
                   ))}
                 </ul>
               </div>
