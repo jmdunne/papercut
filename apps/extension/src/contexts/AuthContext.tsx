@@ -17,12 +17,8 @@ interface AuthContextType {
   session: Session | null
   loading: boolean
   error: Error | null
-  signIn: (email: string, password: string) => Promise<Session | null>
-  signUp: (
-    email: string,
-    password: string,
-    metadata?: object
-  ) => Promise<Session | null>
+  signIn: (email: string, password: string) => Promise<void>
+  signUp: (email: string, password: string, metadata?: object) => Promise<void>
   signOut: () => Promise<void>
   refreshUser: () => Promise<void>
   resetAuthState: () => void
