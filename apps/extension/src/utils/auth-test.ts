@@ -64,11 +64,12 @@ export const testAuthFlow = async () => {
     try {
       // A simple request that requires authentication
       startTime = performance.now()
-      const { data, error } = await withTimeout(
-        supabase.from("profiles").select("id").limit(1),
+      const response = await withTimeout(
+        Promise.resolve(supabase.from("profiles").select("id").limit(1)),
         3000,
         "Test authenticated request"
       )
+      const error = response.error
 
       results.timings.testAuthRequest = performance.now() - startTime
 
