@@ -16,10 +16,10 @@ import type { Database } from "../types/supabase"
  * @returns Promise with timeout
  */
 export const withTimeout = async <T>(
-  promise: Promise<T>,
+  promise: Promise,
   timeoutMs = 5000,
   operationName = "Operation"
-): Promise<T> => {
+): Promise => {
   let timeoutId: NodeJS.Timeout
 
   const timeoutPromise = new Promise<never>((_, reject) => {
@@ -280,6 +280,144 @@ export const refreshSession = async () => {
   }
 }
 
+/**
+ * Ensure a user profile exists in the database
+ * This is a fallback mechanism in case the database trigger doesn't work
+ * @param user The user to ensure has a profile
+ * @returns The result of the upsert operation
+ */
+export const ensureUserProfile = async (user: any) => {
+  console.log("[DEBUG] supabase: Ensuring user profile exists", user?.id)
+  if (!user) {
+    console.log("[DEBUG] supabase: No user provided to ensureUserProfile")
+    return { error: new Error("No user provided") }
+  }
+
+  try {
+    // First check if profile exists
+    const { data: existingProfile, error: checkError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", user.id)
+      .single()
+
+    if (checkError && checkError.code !== "PGRST116") {
+      // PGRST116 is "No rows returned" error
+      console.error(
+        "[DEBUG] supabase: Error checking for existing profile:",
+        checkError
+      )
+      // Continue anyway to try creating the profile
+    }
+
+    // If profile exists, no need to create it
+    if (existingProfile) {
+      console.log("[DEBUG] supabase: User profile already exists")
+      return { data: existingProfile, error: null }
+    }
+
+    console.log("[DEBUG] supabase: Creating user profile")
+    // Create profile with onboarding_status
+    const { data, error } = await supabase
+      .from("profiles")
+      .upsert({
+        id: user.id,
+        email: user.email,
+        full_name: user.user_metadata?.full_name,
+        avatar_url: user.user_metadata?.avatar_url,
+        onboarding_status: {
+          completed: false,
+          current_step: "welcome",
+          steps_completed: []
+        }
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error("[DEBUG] supabase: Error creating user profile:", error)
+      return { error }
+    }
+
+    console.log("[DEBUG] supabase: User profile created successfully")
+    return { data, error: null }
+  } catch (error) {
+    console.error("[DEBUG] supabase: Exception ensuring user profile:", error)
+    return { error }
+  }
+}
+
+/**
+ * Track an onboarding event
+ * This function handles errors gracefully and provides fallback mechanisms
+ * @param userId The user ID
+ * @param eventType The type of event
+ * @param eventData Additional event data
+ * @returns The result of the operation
+ */
+export const trackOnboardingEvent = async (
+  userId: string,
+  eventType: string,
+  eventData: Record = {}
+) => {
+  console.log(`[DEBUG] supabase: Tracking onboarding event: ${eventType}`)
+
+  if (!userId) {
+    console.error("[DEBUG] supabase: No user ID provided for tracking event")
+    return { error: new Error("No user ID provided") }
+  }
+
+  try {
+    // Attempt to insert into onboarding_analytics table
+    const { data, error } = await supabase.from("onboarding_analytics").insert({
+      user_id: userId,
+      event_type: eventType,
+      event_data: eventData,
+      created_at: new Date().toISOString()
+    })
+
+    if (error) {
+      console.error("[DEBUG] supabase: Error tracking onboarding event:", error)
+
+      // Store event locally as fallback
+      try {
+        const offlineEvents = JSON.parse(
+          localStorage.getItem("offline_onboarding_events") || "[]"
+        )
+
+        offlineEvents.push({
+          user_id: userId,
+          event_type: eventType,
+          event_data: eventData,
+          created_at: new Date().toISOString()
+        })
+
+        localStorage.setItem(
+          "offline_onboarding_events",
+          JSON.stringify(offlineEvents)
+        )
+        console.log("[DEBUG] supabase: Stored event offline for later sync")
+      } catch (storageError) {
+        console.error(
+          "[DEBUG] supabase: Error storing event offline:",
+          storageError
+        )
+      }
+
+      return { error }
+    }
+
+    console.log("[DEBUG] supabase: Event tracked successfully")
+    return { data, error: null }
+  } catch (error) {
+    console.error(
+      "[DEBUG] supabase: Exception tracking onboarding event:",
+      error
+    )
+    return { error }
+  }
+}
+
 // Export all functions and the client as default export as well
 // This provides flexibility in how the module is imported
 const supabaseUtils = {
@@ -290,7 +428,9 @@ const supabaseUtils = {
   signOut,
   onAuthStateChange,
   isSupabaseInitialized,
-  refreshSession
+  refreshSession,
+  ensureUserProfile,
+  trackOnboardingEvent
 }
 
 export default supabaseUtils

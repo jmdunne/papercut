@@ -12,6 +12,7 @@ import { useEffect, useState } from "react"
 import { measureAsyncPerformance } from "../utils/performance"
 // Try to import using the relative path first
 import supabaseDefault, {
+  ensureUserProfile,
   getCurrentUser,
   isSupabaseInitialized,
   signInWithEmail,
@@ -28,7 +29,8 @@ const {
   signInWithEmail: signInWithEmailFallback,
   signUpWithEmail: signUpWithEmailFallback,
   supabase: supabaseFallback,
-  signOut: supabaseSignOutFallback
+  signOut: supabaseSignOutFallback,
+  ensureUserProfile: ensureUserProfileFallback
 } = supabaseDefault || {}
 
 // Use the imported functions or their fallbacks
@@ -38,6 +40,7 @@ const doSignIn = signInWithEmail || signInWithEmailFallback
 const doSignUp = signUpWithEmail || signUpWithEmailFallback
 const supabaseClient = supabase || supabaseFallback
 const doSignOut = supabaseSignOut || supabaseSignOutFallback
+const doEnsureUserProfile = ensureUserProfile || ensureUserProfileFallback
 
 interface AuthState {
   user: User | null
@@ -47,10 +50,10 @@ interface AuthState {
 }
 
 interface UseAuthReturn extends AuthState {
-  signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, metadata?: object) => Promise<void>
-  signOut: () => Promise<void>
-  refreshUser: () => Promise<void>
+  signIn: (email: string, password: string) => Promise
+  signUp: (email: string, password: string, metadata?: object) => Promise
+  signOut: () => Promise
+  refreshUser: () => Promise
   resetAuthState: () => void
 }
 
@@ -160,6 +163,19 @@ export function useAuth(): UseAuthReturn {
                 "[DEBUG] useAuth: User result",
                 user ? "User exists" : "No user"
               )
+
+              // Ensure user profile exists
+              if (user) {
+                console.log("[DEBUG] useAuth: Ensuring user profile exists")
+                const { error: profileError } = await doEnsureUserProfile(user)
+                if (profileError) {
+                  console.error(
+                    "[DEBUG] useAuth: Error ensuring user profile",
+                    profileError
+                  )
+                  // Continue anyway, don't fail the auth flow
+                }
+              }
             } catch (userError) {
               console.error("[DEBUG] useAuth: Error getting user", userError)
               // If we can't get the user, reset auth state
@@ -217,6 +233,21 @@ export function useAuth(): UseAuthReturn {
           "[DEBUG] useAuth: User after state change",
           user ? "exists" : "null"
         )
+
+        // Ensure user profile exists after auth state change
+        if (user && (event === "SIGNED_IN" || event === "USER_UPDATED")) {
+          console.log(
+            "[DEBUG] useAuth: Ensuring user profile after auth change"
+          )
+          const { error: profileError } = await doEnsureUserProfile(user)
+          if (profileError) {
+            console.error(
+              "[DEBUG] useAuth: Error ensuring user profile after auth change",
+              profileError
+            )
+            // Continue anyway, don't fail the auth flow
+          }
+        }
       }
 
       console.log(
