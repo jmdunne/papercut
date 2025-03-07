@@ -2,7 +2,7 @@
  * Tests for the OnboardingStateManager class
  */
 
-import type { OnboardingState } from "../../types/onboarding"
+import type { OnboardingState, OnboardingStep } from "../../types/onboarding"
 import { OnboardingStateManager } from "../onboarding"
 import { supabase } from "../supabase"
 
@@ -20,7 +20,7 @@ jest.mock("../supabase", () => ({
 
 // Mock localStorage
 const localStorageMock = (() => {
-  let store: Record<string, string> = {}
+  let store: Record = {}
   return {
     getItem: jest.fn((key: string) => store[key] || null),
     setItem: jest.fn((key: string, value: string) => {
@@ -37,12 +37,18 @@ const localStorageMock = (() => {
 
 Object.defineProperty(window, "localStorage", { value: localStorageMock })
 
+// Mock the onboarding_analytics table
+// This is needed because it's not in the Supabase types
+type MockSupabase = typeof supabase & {
+  from(table: "onboarding_analytics"): any
+}
+
 describe("OnboardingStateManager", () => {
   let onboardingManager: OnboardingStateManager
   const userId = "test-user-id"
   const defaultState: OnboardingState = {
     completed: false,
-    current_step: "welcome",
+    current_step: "welcome" as OnboardingStep,
     steps_completed: []
   }
 
@@ -139,8 +145,12 @@ describe("OnboardingStateManager", () => {
       // Set up local storage with a state
       const localState = {
         completed: true,
-        current_step: "feature_intro",
-        steps_completed: ["welcome", "persona_survey", "project_setup"]
+        current_step: "feature_intro" as OnboardingStep,
+        steps_completed: [
+          "welcome",
+          "persona_survey",
+          "project_setup"
+        ] as OnboardingStep[]
       }
       localStorageMock.setItem(
         `onboarding_state_${userId}`,
@@ -206,13 +216,13 @@ describe("OnboardingStateManager", () => {
       // Set up local storage with a state
       const localState = {
         completed: true,
-        current_step: "dashboard",
+        current_step: "dashboard" as OnboardingStep,
         steps_completed: [
           "welcome",
           "persona_survey",
           "project_setup",
           "feature_intro"
-        ]
+        ] as OnboardingStep[]
       }
       localStorageMock.setItem(
         `onboarding_state_${userId}`,
@@ -245,8 +255,8 @@ describe("OnboardingStateManager", () => {
       })
 
       const updates = {
-        current_step: "persona_survey",
-        steps_completed: ["welcome"]
+        current_step: "persona_survey" as OnboardingStep,
+        steps_completed: ["welcome"] as OnboardingStep[]
       }
 
       await onboardingManager.updateOnboardingState(userId, updates)
@@ -292,8 +302,8 @@ describe("OnboardingStateManager", () => {
       })
 
       const updates = {
-        current_step: "project_setup",
-        steps_completed: ["persona_survey"]
+        current_step: "project_setup" as OnboardingStep,
+        steps_completed: ["persona_survey"] as OnboardingStep[]
       }
 
       await onboardingManager.updateOnboardingState(userId, updates)
@@ -330,8 +340,8 @@ describe("OnboardingStateManager", () => {
       )
 
       const updates = {
-        current_step: "persona_survey",
-        steps_completed: ["welcome"]
+        current_step: "persona_survey" as OnboardingStep,
+        steps_completed: ["welcome"] as OnboardingStep[]
       }
 
       await onboardingManager.updateOnboardingState(userId, updates)
@@ -352,7 +362,8 @@ describe("OnboardingStateManager", () => {
     it("should track onboarding event in Supabase", async () => {
       // Mock insert success
       ;(
-        supabase.from("onboarding_analytics").insert as jest.Mock
+        (supabase as MockSupabase).from("onboarding_analytics")
+          .insert as jest.Mock
       ).mockResolvedValueOnce({
         error: null
       })
@@ -363,7 +374,9 @@ describe("OnboardingStateManager", () => {
       await onboardingManager.trackOnboardingEvent(userId, eventType, eventData)
 
       expect(supabase.from).toHaveBeenCalledWith("onboarding_analytics")
-      expect(supabase.from("onboarding_analytics").insert).toHaveBeenCalledWith(
+      expect(
+        (supabase as MockSupabase).from("onboarding_analytics").insert
+      ).toHaveBeenCalledWith(
         expect.objectContaining({
           user_id: userId,
           event_type: eventType,
@@ -375,7 +388,8 @@ describe("OnboardingStateManager", () => {
     it("should store event offline if tracking fails", async () => {
       // Mock insert failure
       ;(
-        supabase.from("onboarding_analytics").insert as jest.Mock
+        (supabase as MockSupabase).from("onboarding_analytics")
+          .insert as jest.Mock
       ).mockResolvedValueOnce({
         error: { message: "Database error" }
       })

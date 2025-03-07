@@ -7,7 +7,7 @@ import React from "react"
 
 import { useAuth } from "../../../hooks/useAuth"
 import { useOnboarding } from "../../../hooks/useOnboarding"
-import type { OnboardingState } from "../../../types/onboarding"
+import type { OnboardingState, OnboardingStep } from "../../../types/onboarding"
 import { ResumptionBanner } from "../ResumptionBanner"
 
 // Mock dependencies
@@ -31,20 +31,20 @@ describe("ResumptionBanner", () => {
   // Mock onboarding states
   const incompleteOnboardingState: OnboardingState = {
     completed: false,
-    current_step: "persona_survey",
-    steps_completed: ["welcome"]
+    current_step: "persona_survey" as OnboardingStep,
+    steps_completed: ["welcome"] as OnboardingStep[]
   }
 
   const completeOnboardingState: OnboardingState = {
     completed: true,
-    current_step: "dashboard",
+    current_step: "dashboard" as OnboardingStep,
     steps_completed: [
       "welcome",
       "persona_survey",
       "project_setup",
       "feature_intro",
       "dashboard"
-    ]
+    ] as OnboardingStep[]
   }
 
   beforeEach(() => {
@@ -157,8 +157,12 @@ describe("ResumptionBanner", () => {
     ;(useOnboarding as jest.Mock).mockReturnValue({
       onboardingState: {
         completed: false,
-        current_step: "feature_intro",
-        steps_completed: ["welcome", "persona_survey", "project_setup"]
+        current_step: "feature_intro" as OnboardingStep,
+        steps_completed: [
+          "welcome",
+          "persona_survey",
+          "project_setup"
+        ] as OnboardingStep[]
       },
       trackOnboardingEvent: mockTrackOnboardingEvent
     })

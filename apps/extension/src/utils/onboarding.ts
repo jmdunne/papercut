@@ -11,7 +11,7 @@ export class OnboardingStateManager {
   /**
    * Get current onboarding state for a user
    */
-  async getOnboardingState(userId: string): Promise<OnboardingState> {
+  async getOnboardingState(userId: string): Promise {
     try {
       console.log(
         "[DEBUG] OnboardingStateManager: Fetching onboarding state for user",
@@ -21,7 +21,7 @@ export class OnboardingStateManager {
       // First check if the user profile exists
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("id")
+        .select("id, email")
         .eq("id", userId)
         .single()
 
@@ -29,6 +29,21 @@ export class OnboardingStateManager {
         console.log(
           "[DEBUG] OnboardingStateManager: Profile doesn't exist, creating it"
         )
+
+        // Get user email from auth
+        const { data: userData, error: userError } =
+          await supabase.auth.getUser()
+
+        if (userError || !userData?.user?.email) {
+          console.error(
+            "[DEBUG] OnboardingStateManager: Error getting user email:",
+            userError
+          )
+          // Fall back to local storage
+          return this.getLocalOnboardingState(userId)
+        }
+
+        const userEmail = userData.user.email
 
         // Profile doesn't exist, create it with default onboarding state
         const defaultState: OnboardingState = {
@@ -40,6 +55,7 @@ export class OnboardingStateManager {
         // Try to create the profile
         const { error: createError } = await supabase.from("profiles").upsert({
           id: userId,
+          email: userEmail,
           onboarding_status: defaultState
         })
 
@@ -131,63 +147,89 @@ export class OnboardingStateManager {
    */
   async updateOnboardingState(
     userId: string,
-    updates: Partial<OnboardingState> | OnboardingState
-  ): Promise<void> {
+    updates: Partial | OnboardingState
+  ): Promise {
     try {
       console.log(
         "[DEBUG] OnboardingStateManager: Updating onboarding state for user",
         userId
       )
 
-      // Get current state or use default
-      let currentState: OnboardingState
-      try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("onboarding_status")
-          .eq("id", userId)
-          .single()
+      // Get user profile to get email
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("email, onboarding_status")
+        .eq("id", userId)
+        .single()
 
-        if (error || !data?.onboarding_status) {
-          currentState = {
-            completed: false,
-            current_step: "welcome",
-            steps_completed: []
-          }
-        } else {
-          currentState = data.onboarding_status
-        }
-      } catch (e) {
+      if (profileError) {
         console.error(
-          "[DEBUG] OnboardingStateManager: Error getting current state:",
-          e
+          "[DEBUG] OnboardingStateManager: Error getting user profile:",
+          profileError
         )
-        // Try to get from local storage
-        const localState = localStorage.getItem(`onboarding_state_${userId}`)
-        currentState = localState
-          ? JSON.parse(localState)
-          : {
-              completed: false,
-              current_step: "welcome",
-              steps_completed: []
-            }
+
+        // Try to get user email from auth
+        const { data: userData, error: userError } =
+          await supabase.auth.getUser()
+
+        if (userError || !userData?.user?.email) {
+          console.error(
+            "[DEBUG] OnboardingStateManager: Error getting user email:",
+            userError
+          )
+          // Fall back to local storage only
+          this.updateLocalOnboardingState(userId, updates)
+          return
+        }
+
+        // Use default state since we couldn't get the current state
+        const currentState: OnboardingState = {
+          completed: false,
+          current_step: "welcome",
+          steps_completed: []
+        }
+
+        // Merge updates with current state
+        const newState = this.mergeStates(currentState, updates)
+
+        // Update in Supabase with the user email
+        const { error } = await supabase.from("profiles").upsert({
+          id: userId,
+          email: userData.user.email,
+          onboarding_status: newState
+        })
+
+        if (error) {
+          console.error(
+            "[DEBUG] OnboardingStateManager: Error updating onboarding state:",
+            error
+          )
+        }
+
+        // Always update local storage as backup
+        localStorage.setItem(
+          `onboarding_state_${userId}`,
+          JSON.stringify(newState)
+        )
+
+        return
+      }
+
+      // We have the profile, use its email and current state
+      const userEmail = profile.email
+      const currentState = profile.onboarding_status || {
+        completed: false,
+        current_step: "welcome",
+        steps_completed: []
       }
 
       // Merge updates with current state
-      const newState = {
-        ...currentState,
-        ...updates,
-        steps_completed: [
-          ...new Set([
-            ...(currentState.steps_completed || []),
-            ...(updates.steps_completed || [])
-          ])
-        ]
-      }
+      const newState = this.mergeStates(currentState, updates)
 
       // Update in Supabase
       const { error } = await supabase.from("profiles").upsert({
         id: userId,
+        email: userEmail,
         onboarding_status: newState
       })
 
@@ -210,37 +252,57 @@ export class OnboardingStateManager {
       )
 
       // Ensure local storage is updated even if Supabase fails
-      try {
-        const localState = localStorage.getItem(`onboarding_state_${userId}`)
-        const currentState = localState
-          ? JSON.parse(localState)
-          : {
-              completed: false,
-              current_step: "welcome",
-              steps_completed: []
-            }
+      this.updateLocalOnboardingState(userId, updates)
+    }
+  }
 
-        const newState = {
-          ...currentState,
-          ...updates,
-          steps_completed: [
-            ...new Set([
-              ...(currentState.steps_completed || []),
-              ...(updates.steps_completed || [])
-            ])
-          ]
-        }
+  /**
+   * Helper method to merge states
+   */
+  private mergeStates(
+    currentState: OnboardingState,
+    updates: Partial | OnboardingState
+  ): OnboardingState {
+    return {
+      ...currentState,
+      ...updates,
+      steps_completed: [
+        ...new Set([
+          ...(currentState.steps_completed || []),
+          ...(updates.steps_completed || [])
+        ])
+      ]
+    }
+  }
 
-        localStorage.setItem(
-          `onboarding_state_${userId}`,
-          JSON.stringify(newState)
-        )
-      } catch (e) {
-        console.error(
-          "[DEBUG] OnboardingStateManager: Error updating local storage:",
-          e
-        )
-      }
+  /**
+   * Update onboarding state in local storage
+   */
+  private updateLocalOnboardingState(
+    userId: string,
+    updates: Partial | OnboardingState
+  ): void {
+    try {
+      const localState = localStorage.getItem(`onboarding_state_${userId}`)
+      const currentState = localState
+        ? JSON.parse(localState)
+        : {
+            completed: false,
+            current_step: "welcome",
+            steps_completed: []
+          }
+
+      const newState = this.mergeStates(currentState, updates)
+
+      localStorage.setItem(
+        `onboarding_state_${userId}`,
+        JSON.stringify(newState)
+      )
+    } catch (e) {
+      console.error(
+        "[DEBUG] OnboardingStateManager: Error updating local storage:",
+        e
+      )
     }
   }
 
@@ -250,8 +312,8 @@ export class OnboardingStateManager {
   async trackOnboardingEvent(
     userId: string,
     eventType: string,
-    eventData: Record<string, any> = {}
-  ): Promise<void> {
+    eventData: Record = {}
+  ): Promise {
     try {
       console.log(
         `[DEBUG] OnboardingStateManager: Tracking event ${eventType} for user ${userId}`
@@ -286,7 +348,7 @@ export class OnboardingStateManager {
   private storeOfflineEvent(
     userId: string,
     eventType: string,
-    eventData: Record<string, any> = {}
+    eventData: Record = {}
   ): void {
     try {
       const offlineEvents = JSON.parse(

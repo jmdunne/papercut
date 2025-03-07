@@ -4,7 +4,7 @@
 
 import { act, renderHook } from "@testing-library/react"
 
-import type { OnboardingState } from "../../types/onboarding"
+import type { OnboardingState, OnboardingStep } from "../../types/onboarding"
 import { onboardingManager } from "../../utils/onboarding"
 import { useAuth } from "../useAuth"
 import { useOnboarding } from "../useOnboarding"
@@ -26,7 +26,7 @@ describe("useOnboarding", () => {
   const mockUser = { id: "test-user-id", email: "test@example.com" }
   const mockOnboardingState: OnboardingState = {
     completed: false,
-    current_step: "welcome",
+    current_step: "welcome" as OnboardingStep,
     steps_completed: []
   }
 
@@ -54,9 +54,13 @@ describe("useOnboarding", () => {
   })
 
   it("should load onboarding state when user is available", async () => {
-    const { result, waitForNextUpdate } = renderHook(() => useOnboarding())
+    const { result } = renderHook(() => useOnboarding())
 
-    await waitForNextUpdate()
+    // Wait for the effect to run
+    await act(async () => {
+      // Just waiting for the next tick
+      await Promise.resolve()
+    })
 
     expect(result.current.loading).toBe(false)
     expect(result.current.onboardingState).toEqual(mockOnboardingState)
@@ -70,7 +74,12 @@ describe("useOnboarding", () => {
 
     const { result } = renderHook(() => useOnboarding())
 
-    // No need to wait for update since it should resolve immediately
+    // Wait for the effect to run
+    await act(async () => {
+      // Just waiting for the next tick
+      await Promise.resolve()
+    })
+
     expect(result.current.loading).toBe(false)
     expect(result.current.onboardingState).toBe(null)
     expect(onboardingManager.getOnboardingState).not.toHaveBeenCalled()
@@ -81,9 +90,13 @@ describe("useOnboarding", () => {
       new Error("Failed to load")
     )
 
-    const { result, waitForNextUpdate } = renderHook(() => useOnboarding())
+    const { result } = renderHook(() => useOnboarding())
 
-    await waitForNextUpdate()
+    // Wait for the effect to run
+    await act(async () => {
+      // Just waiting for the next tick
+      await Promise.resolve()
+    })
 
     expect(result.current.loading).toBe(false)
     expect(result.current.onboardingState).toBe(null)
@@ -92,21 +105,24 @@ describe("useOnboarding", () => {
   it("should update onboarding state", async () => {
     const updatedState: OnboardingState = {
       ...mockOnboardingState,
-      current_step: "persona_survey",
-      steps_completed: ["welcome"]
+      current_step: "persona_survey" as OnboardingStep,
+      steps_completed: ["welcome"] as OnboardingStep[]
     }
 
     ;(onboardingManager.getOnboardingState as jest.Mock)
       .mockResolvedValueOnce(mockOnboardingState)
       .mockResolvedValueOnce(updatedState)
 
-    const { result, waitForNextUpdate } = renderHook(() => useOnboarding())
+    const { result } = renderHook(() => useOnboarding())
 
-    await waitForNextUpdate()
+    // Wait for the initial effect to run
+    await act(async () => {
+      await Promise.resolve()
+    })
 
     const updates = {
-      current_step: "persona_survey",
-      steps_completed: ["welcome"]
+      current_step: "persona_survey" as OnboardingStep,
+      steps_completed: ["welcome"] as OnboardingStep[]
     }
 
     await act(async () => {
@@ -126,9 +142,14 @@ describe("useOnboarding", () => {
 
     const { result } = renderHook(() => useOnboarding())
 
+    // Wait for the initial effect to run
+    await act(async () => {
+      await Promise.resolve()
+    })
+
     const updates = {
-      current_step: "persona_survey",
-      steps_completed: ["welcome"]
+      current_step: "persona_survey" as OnboardingStep,
+      steps_completed: ["welcome"] as OnboardingStep[]
     }
 
     await act(async () => {
@@ -143,13 +164,16 @@ describe("useOnboarding", () => {
       new Error("Failed to update")
     )
 
-    const { result, waitForNextUpdate } = renderHook(() => useOnboarding())
+    const { result } = renderHook(() => useOnboarding())
 
-    await waitForNextUpdate()
+    // Wait for the initial effect to run
+    await act(async () => {
+      await Promise.resolve()
+    })
 
     const updates = {
-      current_step: "persona_survey",
-      steps_completed: ["welcome"]
+      current_step: "persona_survey" as OnboardingStep,
+      steps_completed: ["welcome"] as OnboardingStep[]
     }
 
     await act(async () => {
@@ -165,9 +189,12 @@ describe("useOnboarding", () => {
   })
 
   it("should track onboarding events", async () => {
-    const { result, waitForNextUpdate } = renderHook(() => useOnboarding())
+    const { result } = renderHook(() => useOnboarding())
 
-    await waitForNextUpdate()
+    // Wait for the initial effect to run
+    await act(async () => {
+      await Promise.resolve()
+    })
 
     const eventType = "welcome_completed"
     const eventData = { time_spent: 30 }
@@ -188,6 +215,11 @@ describe("useOnboarding", () => {
 
     const { result } = renderHook(() => useOnboarding())
 
+    // Wait for the initial effect to run
+    await act(async () => {
+      await Promise.resolve()
+    })
+
     const eventType = "welcome_completed"
     const eventData = { time_spent: 30 }
 
@@ -203,9 +235,12 @@ describe("useOnboarding", () => {
       new Error("Failed to track")
     )
 
-    const { result, waitForNextUpdate } = renderHook(() => useOnboarding())
+    const { result } = renderHook(() => useOnboarding())
 
-    await waitForNextUpdate()
+    // Wait for the initial effect to run
+    await act(async () => {
+      await Promise.resolve()
+    })
 
     const eventType = "welcome_completed"
     const eventData = { time_spent: 30 }

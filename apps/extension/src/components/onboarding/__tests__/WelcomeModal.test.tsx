@@ -7,6 +7,7 @@ import React from "react"
 
 import { useAuth } from "../../../hooks/useAuth"
 import { useOnboarding } from "../../../hooks/useOnboarding"
+import type { OnboardingStep } from "../../../types/onboarding"
 import { WelcomeModal } from "../WelcomeModal"
 
 // Mock dependencies
@@ -78,8 +79,8 @@ describe("WelcomeModal", () => {
 
     await waitFor(() => {
       expect(mockUpdateOnboardingState).toHaveBeenCalledWith({
-        current_step: "persona_survey",
-        steps_completed: ["welcome"]
+        current_step: "persona_survey" as OnboardingStep,
+        steps_completed: ["welcome"] as OnboardingStep[]
       })
       expect(mockTrackOnboardingEvent).toHaveBeenCalledWith("welcome_completed")
       expect(mockOnGetStarted).toHaveBeenCalled()
@@ -93,8 +94,8 @@ describe("WelcomeModal", () => {
 
     await waitFor(() => {
       expect(mockUpdateOnboardingState).toHaveBeenCalledWith({
-        current_step: "dashboard",
-        steps_completed: ["welcome"]
+        current_step: "dashboard" as OnboardingStep,
+        steps_completed: ["welcome"] as OnboardingStep[]
       })
       expect(mockTrackOnboardingEvent).toHaveBeenCalledWith("welcome_skipped")
       expect(mockOnSkip).toHaveBeenCalled()
