@@ -1,0 +1,61 @@
+name: PR Preview
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    strategy:
+      matrix:
+        node-version: [18.x]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the extension
+        run: npm run build
+        env:
+          PLASMO_PUBLIC_SUPABASE_URL: ${{ secrets.PLASMO_PUBLIC_SUPABASE_URL }}
+          PLASMO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PLASMO_PUBLIC_SUPABASE_ANON_KEY }}
+
+      - name: Package the extension
+        run: npm run package
+
+      - name: Upload preview artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: extension-preview-${{ github.event.pull_request.number }}
+          path: build/chrome-mv3-prod.zip
+          retention-days: 5
+
+      - name: Comment on PR with download link
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const artifactName = `extension-preview-${context.issue.number}`;
+            const artifactUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}/artifacts`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `📦 Preview build is ready!\n\nYou can download the preview build from the [Artifacts section](${artifactUrl}) of this workflow run.\n\nTo test it:\n1. Download the \`${artifactName}\` zip file\n2. Unzip it\n3. Go to \`chrome://extensions\`\n4. Enable Developer mode\n5. Click "Load unpacked"\n6. Select the unzipped folder`
+            });

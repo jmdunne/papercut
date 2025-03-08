@@ -14,7 +14,9 @@
     "test:auth": "ts-node src/utils/run-auth-tests.ts",
     "test:auth:basic": "ts-node src/utils/run-auth-tests.ts --test=basic",
     "test:auth:suite": "ts-node src/utils/run-auth-tests.ts --test=suite",
-    "test:auth:stress": "ts-node src/utils/run-auth-tests.ts --test=stress"
+    "test:auth:stress": "ts-node src/utils/run-auth-tests.ts --test=stress",
+    "lint": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@plasmohq/storage": "^1.15.0",
