@@ -102,6 +102,52 @@ This extension requires a Supabase project with the following tables:
 - created_by (uuid, references profiles.id)
 - thumbnail_url (text)
 
+## Testing
+
+The Papercut extension uses Jest for testing. We have a comprehensive test suite that covers utilities, hooks, and components.
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode (useful during development)
+npm run test:watch
+
+# Run tests with coverage report
+npm run test:coverage
+```
+
+### Writing Tests
+
+Tests are organized alongside the code they test, following this structure:
+
+- `src/utils/__tests__/` - Tests for utility functions
+- `src/hooks/__tests__/` - Tests for React hooks
+- `src/components/**/__tests__/` - Tests for React components
+
+We provide test helpers to make it easier to test components and hooks that interact with Supabase:
+
+```typescript
+// Example: Testing a component that uses Supabase
+import { setupOnboardingMocks } from "../../utils/test-helpers"
+
+// In your test
+const { supabaseMock, mockProfileQuery } = setupOnboardingMocks({
+  profileExists: true,
+  onboardingState: {
+    completed: false,
+    current_step: "welcome",
+    steps_completed: []
+  }
+})
+
+// Now you can use the mocks in your tests
+```
+
+For more details on testing, see the [TESTING.md](./TESTING.md) file.
+
 ## License
 
 MIT

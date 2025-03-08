@@ -27,7 +27,7 @@ describe("WelcomeModal", () => {
   // Mock hook returns
   const mockUser = { id: "test-user-id", email: "test@example.com" }
   const mockTrackOnboardingEvent = jest.fn()
-  const mockUpdateOnboardingState = jest.fn()
+  const mockUpdateOnboardingState = jest.fn().mockResolvedValue(undefined)
 
   beforeEach(() => {
     jest.clearAllMocks()
@@ -36,7 +36,13 @@ describe("WelcomeModal", () => {
     ;(useAuth as jest.Mock).mockReturnValue({ user: mockUser })
     ;(useOnboarding as jest.Mock).mockReturnValue({
       trackOnboardingEvent: mockTrackOnboardingEvent,
-      updateOnboardingState: mockUpdateOnboardingState
+      updateOnboardingState: mockUpdateOnboardingState,
+      loading: false,
+      onboardingState: {
+        completed: false,
+        current_step: "welcome",
+        steps_completed: []
+      }
     })
   })
 
@@ -124,6 +130,20 @@ describe("WelcomeModal", () => {
       expect(mockUpdateOnboardingState).not.toHaveBeenCalled()
       expect(mockTrackOnboardingEvent).not.toHaveBeenCalled()
       expect(mockOnSkip).toHaveBeenCalled()
+    })
+  })
+
+  it("should handle errors when updating onboarding state", async () => {
+    // Mock updateOnboardingState to throw an error
+    mockUpdateOnboardingState.mockRejectedValueOnce(new Error("Update failed"))
+
+    render(<WelcomeModal onGetStarted={mockOnGetStarted} onSkip={mockOnSkip} />)
+
+    fireEvent.click(screen.getByTestId("get-started-button"))
+
+    // Should still call onGetStarted even if updateOnboardingState fails
+    await waitFor(() => {
+      expect(mockOnGetStarted).toHaveBeenCalled()
     })
   })
 })

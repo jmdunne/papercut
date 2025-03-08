@@ -2,20 +2,14 @@
  * Tests for the OnboardingStateManager class
  */
 
+import { createSupabaseMock } from "../../setupTests"
 import type { OnboardingState, OnboardingStep } from "../../types/onboarding"
 import { OnboardingStateManager } from "../onboarding"
 import { supabase } from "../supabase"
 
 // Mock Supabase client
 jest.mock("../supabase", () => ({
-  supabase: {
-    from: jest.fn().mockReturnThis(),
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    single: jest.fn(),
-    upsert: jest.fn().mockReturnThis(),
-    insert: jest.fn().mockReturnThis()
-  }
+  supabase: createSupabaseMock()
 }))
 
 // Mock localStorage
@@ -61,27 +55,31 @@ describe("OnboardingStateManager", () => {
   describe("getOnboardingState", () => {
     it("should fetch onboarding state from Supabase", async () => {
       // Mock profile exists
-      ;(
-        supabase.from("profiles").select("id").eq("id", userId)
-          .single as jest.Mock
-      ).mockResolvedValueOnce({
-        data: { id: userId },
-        error: null
-      })
-
-      // Mock onboarding status exists
-      ;(
-        supabase.from("profiles").select("onboarding_status").eq("id", userId)
-          .single as jest.Mock
-      ).mockResolvedValueOnce({
-        data: {
-          onboarding_status: {
-            completed: true,
-            current_step: "project_setup",
-            steps_completed: ["welcome", "persona_survey"]
-          }
-        },
-        error: null
+      const mockProfileQuery = supabase.from("profiles")
+      ;(mockProfileQuery.select as jest.Mock).mockReturnThis()
+      ;(mockProfileQuery.eq as jest.Mock).mockReturnThis()
+      ;(mockProfileQuery.single as jest.Mock).mockImplementation(() => {
+        // First call checks if profile exists
+        if (
+          (mockProfileQuery.select as jest.Mock).mock.calls[0][0] ===
+          "id, email"
+        ) {
+          return Promise.resolve({
+            data: { id: userId, email: "test@example.com" },
+            error: null
+          })
+        }
+        // Second call gets onboarding status
+        return Promise.resolve({
+          data: {
+            onboarding_status: {
+              completed: true,
+              current_step: "project_setup",
+              steps_completed: ["welcome", "persona_survey"]
+            }
+          },
+          error: null
+        })
       })
 
       const result = await onboardingManager.getOnboardingState(userId)
@@ -104,16 +102,34 @@ describe("OnboardingStateManager", () => {
 
     it("should create profile if it does not exist", async () => {
       // Mock profile does not exist
-      ;(
-        supabase.from("profiles").select("id").eq("id", userId)
-          .single as jest.Mock
-      ).mockResolvedValueOnce({
-        data: null,
-        error: { message: "Profile not found" }
+      const mockProfileQuery = supabase.from("profiles")
+      ;(mockProfileQuery.select as jest.Mock).mockReturnThis()
+      ;(mockProfileQuery.eq as jest.Mock).mockReturnThis()
+      ;(mockProfileQuery.single as jest.Mock).mockImplementation(() => {
+        // First call checks if profile exists
+        if (
+          (mockProfileQuery.select as jest.Mock).mock.calls[0][0] ===
+          "id, email"
+        ) {
+          return Promise.resolve({
+            data: null,
+            error: { message: "Profile not found" }
+          })
+        }
+        return Promise.resolve({
+          data: null,
+          error: { message: "Profile not found" }
+        })
+      })
+
+      // Mock auth.getUser
+      ;(supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: { email: "test@example.com" } },
+        error: null
       })
 
       // Mock profile creation success
-      ;(supabase.from("profiles").upsert as jest.Mock).mockResolvedValueOnce({
+      ;(mockProfileQuery.upsert as jest.Mock).mockResolvedValue({
         error: null
       })
 
@@ -121,10 +137,15 @@ describe("OnboardingStateManager", () => {
 
       expect(result).toEqual(defaultState)
       expect(supabase.from).toHaveBeenCalledWith("profiles")
-      expect(supabase.from("profiles").upsert).toHaveBeenCalledWith({
-        id: userId,
-        onboarding_status: defaultState
-      })
+      expect(supabase.auth.getUser).toHaveBeenCalled()
+      // Check upsert was called with correct parameters
+      expect(mockProfileQuery.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: userId,
+          email: "test@example.com",
+          onboarding_status: defaultState
+        })
+      )
     })
 
     it("should fall back to local storage if profile creation fails", async () => {
