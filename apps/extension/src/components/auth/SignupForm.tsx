@@ -67,15 +67,29 @@ export function SignupForm() {
 
   if (success) {
     return (
-      <div className="w-full max-w-md p-6 bg-white rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold mb-4 text-center">Success!</h2>
-        <p className="text-center mb-6">
+      <div className="text-center py-4">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4">
+          <svg
+            className="w-8 h-8 text-green-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M5 13l4 4L19 7"></path>
+          </svg>
+        </div>
+        <h3 className="text-xl font-semibold text-gray-800 mb-2">Success!</h3>
+        <p className="text-gray-600 mb-6">
           Your account has been created. Please check your email for a
           confirmation link.
         </p>
         <button
           onClick={() => setSuccess(false)}
-          className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+          className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors">
           Sign Up Again
         </button>
       </div>
@@ -83,105 +97,101 @@ export function SignupForm() {
   }
 
   return (
-    <div className="w-full max-w-md p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6 text-center">Create Account</h2>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Full Name Field */}
+      <div className="space-y-2">
+        <label
+          htmlFor="fullName"
+          className="block text-sm font-medium text-gray-700">
+          Full Name
+        </label>
+        <input
+          id="fullName"
+          type="text"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder="John Doe"
+          disabled={loading}
+        />
+      </div>
 
-      <form onSubmit={handleSubmit}>
-        {/* Full Name Field */}
-        <div className="mb-4">
-          <label
-            htmlFor="fullName"
-            className="block text-sm font-medium text-gray-700 mb-1">
-            Full Name
-          </label>
-          <input
-            id="fullName"
-            type="text"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="John Doe"
-            disabled={loading}
-          />
+      {/* Email Field */}
+      <div className="space-y-2">
+        <label
+          htmlFor="email"
+          className="block text-sm font-medium text-gray-700">
+          Email
+        </label>
+        <input
+          id="email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder="your@email.com"
+          disabled={loading}
+          required
+        />
+      </div>
+
+      {/* Password Field */}
+      <div className="space-y-2">
+        <label
+          htmlFor="password"
+          className="block text-sm font-medium text-gray-700">
+          Password
+        </label>
+        <input
+          id="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder="••••••••"
+          disabled={loading}
+          required
+          minLength={6}
+        />
+        <p className="mt-1 text-xs text-gray-500">
+          Must be at least 6 characters
+        </p>
+      </div>
+
+      {/* Confirm Password Field */}
+      <div className="space-y-2">
+        <label
+          htmlFor="confirmPassword"
+          className="block text-sm font-medium text-gray-700">
+          Confirm Password
+        </label>
+        <input
+          id="confirmPassword"
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder="••••••••"
+          disabled={loading}
+          required
+        />
+      </div>
+
+      {/* Error Message */}
+      {(formError || error) && (
+        <div className="p-3 bg-red-50 text-red-700 rounded-md text-sm border border-red-200">
+          {formError ||
+            (error instanceof Error ? error.message : "An error occurred")}
         </div>
+      )}
 
-        {/* Email Field */}
-        <div className="mb-4">
-          <label
-            htmlFor="email"
-            className="block text-sm font-medium text-gray-700 mb-1">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="your@email.com"
-            disabled={loading}
-            required
-          />
-        </div>
-
-        {/* Password Field */}
-        <div className="mb-4">
-          <label
-            htmlFor="password"
-            className="block text-sm font-medium text-gray-700 mb-1">
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="••••••••"
-            disabled={loading}
-            required
-            minLength={6}
-          />
-          <p className="mt-1 text-xs text-gray-500">
-            Must be at least 6 characters
-          </p>
-        </div>
-
-        {/* Confirm Password Field */}
-        <div className="mb-6">
-          <label
-            htmlFor="confirmPassword"
-            className="block text-sm font-medium text-gray-700 mb-1">
-            Confirm Password
-          </label>
-          <input
-            id="confirmPassword"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="••••••••"
-            disabled={loading}
-            required
-          />
-        </div>
-
-        {/* Error Message */}
-        {(formError || error) && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md text-sm">
-            {formError ||
-              (error instanceof Error ? error.message : "An error occurred")}
-          </div>
-        )}
-
-        {/* Submit Button */}
-        <button
-          type="submit"
-          className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
-          disabled={loading}>
-          {loading ? "Creating Account..." : "Create Account"}
-        </button>
-      </form>
-    </div>
+      {/* Submit Button */}
+      <button
+        type="submit"
+        className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+        disabled={loading}>
+        {loading ? "Creating Account..." : "Create Account"}
+      </button>
+    </form>
   )
 }
