@@ -7,15 +7,8 @@ import { DesignModeProvider } from "@/contexts/design-mode-context";
 import { KeyboardShortcutListener } from "@/components/design-mode/keyboard-shortcut-listener";
 import { WelcomeMessage } from "@/components/design-mode/welcome-message";
 import { FloatingActionBar } from "@/components/design-mode/floating-action-bar";
-
-const inter = Inter({ subsets: ["latin"] });
-
-export const metadata = {
-  title: "Papercut - Design directly on your live website",
-  description:
-    "Eliminate the small but persistent annoyances when making minor, iterative changes to your web pages.",
-  generator: "v0.dev",
-};
+import { OnboardingProvider } from "@/components/onboarding/onboarding-context";
+import { OnboardingOverlay } from "@/components/onboarding/onboarding-overlay";
 
 export default function RootLayout({
   children,
@@ -24,22 +17,17 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${inter.className} antialiased`}
-        suppressHydrationWarning
-      >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem={false}
-          disableTransitionOnChange
-        >
+      <body suppressHydrationWarning>
+        <ThemeProvider>
           <DesignModeProvider>
-            <DynamicBackground />
-            <KeyboardShortcutListener />
-            <WelcomeMessage />
-            <FloatingActionBar />
-            {children}
+            <OnboardingProvider>
+              <DynamicBackground />
+              <KeyboardShortcutListener />
+              <WelcomeMessage />
+              <FloatingActionBar />
+              <OnboardingOverlay />
+              {children}
+            </OnboardingProvider>
           </DesignModeProvider>
         </ThemeProvider>
       </body>

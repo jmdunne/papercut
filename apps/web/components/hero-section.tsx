@@ -5,6 +5,8 @@ import { ArrowRight, Sparkles } from "lucide-react";
 import { useDesignMode } from "@/contexts/design-mode-context";
 import { motion, type MotionProps } from "framer-motion";
 import { useState } from "react";
+import { useOnboarding } from "@/components/onboarding/onboarding-context";
+import { designModeTutorial } from "@/components/onboarding/guided-tour";
 
 // Create properly typed motion component
 type MotionDivProps = MotionProps & React.HTMLAttributes<HTMLDivElement>;
@@ -12,10 +14,17 @@ const MotionDiv = motion.div as React.FC<MotionDivProps>;
 
 export function HeroSection() {
   const { activateDesignMode } = useDesignMode();
+  const { startTutorial } = useOnboarding();
   const [isHovering, setIsHovering] = useState(false);
 
   const handleTrySandboxClick = () => {
+    // Activate design mode
     activateDesignMode();
+
+    // Start the tutorial with a slight delay
+    setTimeout(() => {
+      startTutorial(designModeTutorial);
+    }, 800);
   };
 
   return (
@@ -103,7 +112,7 @@ export function HeroSection() {
                     <div className="h-32 w-full bg-gray-100 rounded mb-4" />
                   </div>
                 </div>
-                <div className="w-64 border-l bg-white/80 p-4">
+                <div className="w-64 border-l bg-white/80 p-4 properties-panel">
                   {/* Papercut editor panel */}
                   <div className="space-y-4">
                     <div className="h-6 w-24 bg-primary/30 rounded" />
