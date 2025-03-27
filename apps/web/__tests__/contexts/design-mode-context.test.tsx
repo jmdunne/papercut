@@ -3,15 +3,13 @@ import { render, screen, fireEvent, act } from "@testing-library/react";
 import {
   DesignModeProvider,
   useDesignMode,
-} from "@/contexts/design-mode-context";
+} from "@/components/design-mode/contexts/design-mode-context";
 
 // Test component that uses the DesignModeContext
 function TestComponent() {
   const {
     isDesignMode,
     toggleDesignMode,
-    activateDesignMode,
-    deactivateDesignMode,
     selectedElement,
     setSelectedElement,
   } = useDesignMode();
@@ -25,10 +23,20 @@ function TestComponent() {
       <button data-testid="toggle-btn" onClick={toggleDesignMode}>
         Toggle
       </button>
-      <button data-testid="activate-btn" onClick={activateDesignMode}>
+      <button
+        data-testid="activate-btn"
+        onClick={() => {
+          if (!isDesignMode) toggleDesignMode();
+        }}
+      >
         Activate
       </button>
-      <button data-testid="deactivate-btn" onClick={deactivateDesignMode}>
+      <button
+        data-testid="deactivate-btn"
+        onClick={() => {
+          if (isDesignMode) toggleDesignMode();
+        }}
+      >
         Deactivate
       </button>
       <button

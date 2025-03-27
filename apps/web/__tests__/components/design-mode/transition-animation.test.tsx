@@ -1,15 +1,15 @@
 import React from "react";
 import { render, screen, act } from "@testing-library/react";
-import { TransitionAnimation } from "@/components/design-mode/transition-animation";
-import { useDesignMode } from "@/contexts/design-mode-context";
+import { TransitionAnimation } from "@/components/design-mode/components/transition-animation";
+import { useDesignMode } from "@/components/design-mode/contexts/design-mode-context";
 
 // Mock the design-mode-context
-jest.mock("@/contexts/design-mode-context", () => ({
+jest.mock("@/components/design-mode/contexts/design-mode-context", () => ({
   useDesignMode: jest.fn(),
 }));
 
 // Mock the GlitterEffect component
-jest.mock("@/components/design-mode/glitter-effect", () => ({
+jest.mock("@/components/design-mode/components/glitter-effect", () => ({
   GlitterEffect: () => <div data-testid="glitter-effect" />,
 }));
 

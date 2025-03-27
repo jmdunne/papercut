@@ -1,10 +1,10 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { FloatingActionBar } from "@/components/design-mode/floating-action-bar";
-import { useDesignMode } from "@/contexts/design-mode-context";
+import { FloatingActionBar } from "@/components/design-mode/components/floating-action-bar";
+import { useDesignMode } from "@/components/design-mode/contexts/design-mode-context";
 
 // Mock the dependencies
-jest.mock("@/contexts/design-mode-context", () => ({
+jest.mock("@/components/design-mode/contexts/design-mode-context", () => ({
   useDesignMode: jest.fn(),
 }));
 

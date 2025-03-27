@@ -60,7 +60,7 @@ export function OnboardingOverlay() {
   return (
     <>
       {/* Backdrop overlay */}
-      <div className="fixed inset-0 bg-black/50 z-40 pointer-events-none" />
+      <div className="fixed inset-0 bg-black/50 z-40 pointer-events-none design-mode-ui" />
 
       {/* Target element highlighter */}
       {targetRect && (
@@ -70,72 +70,78 @@ export function OnboardingOverlay() {
         />
       )}
 
-      {/* Tutorial step card */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={`step-${currentStep}`}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-          className="fixed z-50 max-w-md"
-          style={getStepPosition(
-            targetRect,
-            currentStepData?.position || "bottom"
-          )}
-        >
-          <div className="bg-background border rounded-lg shadow-lg p-4">
-            <div className="flex justify-between items-start mb-2">
-              <h3 className="text-lg font-semibold text-primary">
-                {currentStepData?.title}
-              </h3>
-              {tutorial?.skipEnabled && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={skipTutorial}
-                  className="h-6 w-6 -mt-1 -mr-1"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-
-            <div className="mb-4">
-              <p className="text-sm text-muted-foreground">
-                {currentStepData?.description}
-              </p>
-            </div>
-
-            {tutorial?.showProgress && (
-              <ProgressIndicator
-                currentStep={currentStep}
-                totalSteps={totalSteps}
-              />
+      {/* Main container for the tour content */}
+      <div
+        className="fixed inset-0 z-50 design-mode-ui"
+        data-testid="onboarding-overlay"
+      >
+        {/* Tutorial step card */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`step-${currentStep}`}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="fixed z-50 max-w-md pointer-events-auto"
+            style={getStepPosition(
+              targetRect,
+              currentStepData?.position || "bottom"
             )}
+          >
+            <div className="bg-background border rounded-lg shadow-lg p-4">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="text-lg font-semibold text-primary">
+                  {currentStepData?.title}
+                </h3>
+                {tutorial?.skipEnabled && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={skipTutorial}
+                    className="h-6 w-6 -mt-1 -mr-1"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
 
-            <div className="flex justify-between mt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={prevStep}
-                disabled={currentStep === 0}
-                className={currentStep === 0 ? "invisible" : ""}
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Back
-              </Button>
-              <Button variant="default" size="sm" onClick={nextStep}>
-                {isLastStep ? "Finish" : "Next"}
-                {!isLastStep && <ChevronRight className="h-4 w-4 ml-1" />}
-              </Button>
+              <div className="mb-4">
+                <p className="text-sm text-muted-foreground">
+                  {currentStepData?.description}
+                </p>
+              </div>
+
+              {tutorial?.showProgress && (
+                <ProgressIndicator
+                  currentStep={currentStep}
+                  totalSteps={totalSteps}
+                />
+              )}
+
+              <div className="flex justify-between mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={prevStep}
+                  disabled={currentStep === 0}
+                  className={currentStep === 0 ? "invisible" : ""}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Back
+                </Button>
+                <Button variant="default" size="sm" onClick={nextStep}>
+                  {isLastStep ? "Finish" : "Next"}
+                  {!isLastStep && <ChevronRight className="h-4 w-4 ml-1" />}
+                </Button>
+              </div>
             </div>
-          </div>
-        </motion.div>
-      </AnimatePresence>
+          </motion.div>
+        </AnimatePresence>
 
-      {/* Show celebration on last step */}
-      {isLastStep && <CompletionCelebration />}
+        {/* Show celebration on last step */}
+        {isLastStep && <CompletionCelebration />}
+      </div>
     </>
   );
 }

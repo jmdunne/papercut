@@ -1,27 +1,28 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { PlayCircle, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { useOnboarding } from "./onboarding-context";
 import { designModeTutorial } from "./guided-tour";
-import { useDesignMode } from "@/contexts/design-mode-context";
+import { useDesignMode } from "@/components/design-mode/contexts/design-mode-context";
 
 export function DesignModeTutorial() {
   const { startTutorial, isActive } = useOnboarding();
-  const { activateDesignMode, isDesignMode } = useDesignMode();
+  const { toggleDesignMode, isDesignMode } = useDesignMode();
 
   // Start the tutorial and activate design mode
-  const handleStartTutorial = () => {
-    // First activate design mode
-    activateDesignMode();
-    
+  const handleStartTutorial = useCallback(() => {
+    if (!isDesignMode) {
+      toggleDesignMode();
+    }
+
     // Then start the tutorial with a slight delay to allow design mode to initialize
     setTimeout(() => {
       startTutorial(designModeTutorial);
     }, 800);
-  };
+  }, [isDesignMode, toggleDesignMode, startTutorial]);
 
   // If tutorial is active or design mode is already on, don't show the button
   if (isActive || isDesignMode) {

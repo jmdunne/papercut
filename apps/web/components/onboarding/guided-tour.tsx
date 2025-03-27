@@ -185,9 +185,15 @@ export function GuidedTour({
   }
 
   return (
-    <Button onClick={() => startTutorial(tutorial)} size="sm" className="gap-2">
-      <PlayCircle className="h-4 w-4" />
-      {tourType === "designMode" ? "Design Mode Tour" : "Editing Tour"}
-    </Button>
+    <div className="design-mode-ui" data-testid="guided-tour">
+      <Button
+        onClick={() => startTutorial(tutorial)}
+        size="sm"
+        className="gap-2"
+      >
+        <PlayCircle className="h-4 w-4" />
+        {tourType === "designMode" ? "Design Mode Tour" : "Editing Tour"}
+      </Button>
+    </div>
   );
 }

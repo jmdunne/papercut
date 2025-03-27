@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles } from "lucide-react";
-import { useDesignMode } from "@/contexts/design-mode-context";
+import { useDesignMode } from "@/components/design-mode/contexts/design-mode-context";
 import { motion, type MotionProps } from "framer-motion";
 import { useState } from "react";
 import { useOnboarding } from "@/components/onboarding/onboarding-context";
@@ -13,13 +13,15 @@ type MotionDivProps = MotionProps & React.HTMLAttributes<HTMLDivElement>;
 const MotionDiv = motion.div as React.FC<MotionDivProps>;
 
 export function HeroSection() {
-  const { activateDesignMode } = useDesignMode();
+  const { toggleDesignMode, isDesignMode } = useDesignMode();
   const { startTutorial } = useOnboarding();
   const [isHovering, setIsHovering] = useState(false);
 
   const handleTrySandboxClick = () => {
-    // Activate design mode
-    activateDesignMode();
+    // If not in design mode, toggle it on
+    if (!isDesignMode) {
+      toggleDesignMode();
+    }
 
     // Start the tutorial with a slight delay
     setTimeout(() => {

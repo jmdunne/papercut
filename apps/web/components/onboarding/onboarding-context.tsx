@@ -8,7 +8,10 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
-import { useDesignMode } from "@/contexts/design-mode-context";
+import {
+  useDesignMode,
+  type DesignTool,
+} from "@/components/design-mode/contexts/design-mode-context";
 
 // Define the tutorial steps
 export type TutorialStep = {
@@ -18,8 +21,10 @@ export type TutorialStep = {
   target?: string; // CSS selector for the element to highlight
   position?: "top" | "right" | "bottom" | "left"; // Position of the tooltip
   action?: string; // Action to perform (e.g., "click", "hover")
-  tool?: string; // Tool to select
+  tool?: DesignTool; // Tool to select
   completionCriteria?: () => boolean; // Function to determine if step is complete
+  requiresDesignMode?: boolean;
+  activeTool?: DesignTool;
 };
 
 // Define the tutorial configuration
@@ -57,7 +62,7 @@ const OnboardingContext = createContext<OnboardingContextType | undefined>(
 
 // Context provider component
 export function OnboardingProvider({ children }: { children: ReactNode }) {
-  const { activateDesignMode, setActiveTool } = useDesignMode();
+  const { toggleDesignMode, isDesignMode, setActiveTool } = useDesignMode();
 
   // State
   const [isActive, setIsActive] = useState(false);
@@ -75,12 +80,17 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       setCurrentStep(0);
       setIsActive(true);
 
-      // If the first step requires design mode, activate it
-      if (tutorialConfig.steps[0]?.tool) {
-        activateDesignMode();
+      // If the first step requires design mode and it's not active, turn it on
+      if (tutorialConfig.steps[0]?.requiresDesignMode && !isDesignMode) {
+        toggleDesignMode();
+      }
+
+      // If the first step specifies a tool, activate it
+      if (tutorialConfig.steps[0]?.activeTool) {
+        setActiveTool(tutorialConfig.steps[0].activeTool);
       }
     },
-    [activateDesignMode]
+    [toggleDesignMode, isDesignMode, setActiveTool]
   );
 
   // Navigate to the next step

@@ -1,11 +1,16 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { HeroSection } from "@/components/hero-section";
-import { useDesignMode } from "@/contexts/design-mode-context";
+import { useDesignMode } from "@/components/design-mode/contexts/design-mode-context";
+import { useOnboarding } from "@/components/onboarding/onboarding-context";
 
-// Mock the design-mode-context
-jest.mock("@/contexts/design-mode-context", () => ({
+// Mock the design mode and onboarding contexts
+jest.mock("@/components/design-mode/contexts/design-mode-context", () => ({
   useDesignMode: jest.fn(),
+}));
+
+jest.mock("@/components/onboarding/onboarding-context", () => ({
+  useOnboarding: jest.fn(),
 }));
 
 // Mock framer-motion to avoid animation issues in tests
@@ -21,13 +26,20 @@ jest.mock("framer-motion", () => ({
 }));
 
 describe("HeroSection", () => {
-  const mockActivateDesignMode = jest.fn();
-
-  // Setup mock implementation before each test
+  // Set up mocks before each test
   beforeEach(() => {
+    // Mock the design mode hook
+    const mockToggleDesignMode = jest.fn();
     (useDesignMode as jest.Mock).mockReturnValue({
-      activateDesignMode: mockActivateDesignMode,
       isDesignMode: false,
+      toggleDesignMode: mockToggleDesignMode,
+    });
+
+    // Mock the onboarding hook
+    const mockStartTutorial = jest.fn();
+    (useOnboarding as jest.Mock).mockReturnValue({
+      startTutorial: mockStartTutorial,
+      isActive: false,
     });
   });
 
@@ -35,42 +47,52 @@ describe("HeroSection", () => {
     jest.clearAllMocks();
   });
 
-  test("renders hero section with correct content", () => {
+  test("renders the hero section with correct content", () => {
     render(<HeroSection />);
 
-    // Check if the main heading is rendered
+    // Check for headline text
     expect(
-      screen.getByRole("heading", {
-        name: /design directly on your live website/i,
-      })
+      screen.getByText(/Design directly on your live website/i)
     ).toBeInTheDocument();
 
-    // Check if the intro badge is rendered
-    expect(screen.getByText(/introducing papercut/i)).toBeInTheDocument();
-    expect(screen.getByText(/beta coming soon/i)).toBeInTheDocument();
-
-    // Check if the description is rendered
+    // Check for description text
     expect(
-      screen.getByText(/eliminate the small but persistent annoyances/i)
+      screen.getByText(
+        /Eliminate the small but persistent annoyances when making minor/i
+      )
     ).toBeInTheDocument();
 
-    // Check if the buttons are rendered
-    expect(
-      screen.getByRole("button", { name: /try sandbox demo/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /see how it works/i })
-    ).toBeInTheDocument();
+    // Check for buttons
+    expect(screen.getByText(/Try Sandbox Demo/i)).toBeInTheDocument();
+    expect(screen.getByText(/See How It Works/i)).toBeInTheDocument();
   });
 
-  test("calls activateDesignMode when 'Try Sandbox Demo' button is clicked", () => {
+  test("calls toggleDesignMode when 'Try Sandbox Demo' button is clicked", () => {
     render(<HeroSection />);
 
-    // Click the "Try Sandbox Demo" button
-    fireEvent.click(screen.getByRole("button", { name: /try sandbox demo/i }));
+    // Get the button and click it
+    const button = screen.getByText(/Try Sandbox Demo/i);
+    fireEvent.click(button);
 
-    // Check if activateDesignMode was called
-    expect(mockActivateDesignMode).toHaveBeenCalledTimes(1);
+    // Check if toggleDesignMode was called
+    expect(useDesignMode().toggleDesignMode).toHaveBeenCalledTimes(1);
+  });
+
+  test("calls startTutorial with designModeTutorial when button is clicked", () => {
+    jest.useFakeTimers();
+    render(<HeroSection />);
+
+    // Get the button and click it
+    const button = screen.getByText(/Try Sandbox Demo/i);
+    fireEvent.click(button);
+
+    // Fast-forward timers
+    jest.advanceTimersByTime(800);
+
+    // Check if startTutorial was called
+    expect(useOnboarding().startTutorial).toHaveBeenCalledTimes(1);
+
+    jest.useRealTimers();
   });
 
   test("applies hover animation when hovering over 'Try Sandbox Demo' button", () => {

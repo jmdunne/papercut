@@ -71,7 +71,10 @@ export function CompletionCelebration() {
   }, []);
 
   return (
-    <>
+    <div
+      className="fixed inset-0 z-50 design-mode-ui"
+      data-testid="completion-celebration"
+    >
       <canvas
         ref={confettiCanvasRef}
         className="fixed inset-0 pointer-events-none z-50"
@@ -81,7 +84,7 @@ export function CompletionCelebration() {
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, delay: 0.5 }}
-        className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none"
+        className="fixed inset-0 flex items-center justify-center z-50"
       >
         <div className="bg-card rounded-lg shadow-lg p-6 text-center max-w-md pointer-events-auto border">
           <div className="mx-auto h-16 w-16 bg-primary/20 flex items-center justify-center rounded-full mb-4">
@@ -125,6 +128,6 @@ export function CompletionCelebration() {
           </div>
         </div>
       </motion.div>
-    </>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useDesignMode } from "@/contexts/design-mode-context";
+import { useDesignMode } from "@/components/design-mode/contexts/design-mode-context";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 
 /**

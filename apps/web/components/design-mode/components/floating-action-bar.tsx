@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useDesignMode } from "@/contexts/design-mode-context";
+import { useDesignMode } from "@/components/design-mode/contexts/design-mode-context";
 import {
   MousePointer,
   MoveHorizontal,
@@ -15,7 +15,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { DesignModeTool } from "@/contexts/design-mode-context";
+import type { DesignTool } from "@/components/design-mode/contexts/design-mode-context";
 
 /**
  * Floating Action Bar (FAB) component that appears at the bottom of the screen
@@ -40,15 +40,15 @@ export function FloatingActionBar() {
 
   // Tool configuration
   const tools = [
-    { id: "select" as DesignModeTool, icon: MousePointer, label: "Select" },
+    { id: "select" as DesignTool, icon: MousePointer, label: "Select" },
     {
-      id: "move" as DesignModeTool,
+      id: "move" as DesignTool,
       icon: MoveHorizontal,
       label: "Move/Resize",
     },
-    { id: "style" as DesignModeTool, icon: Paintbrush, label: "Style" },
-    { id: "ai" as DesignModeTool, icon: Sparkles, label: "AI Assistant" },
-    { id: "history" as DesignModeTool, icon: Clock, label: "History" },
+    { id: "style" as DesignTool, icon: Paintbrush, label: "Style" },
+    { id: "ai" as DesignTool, icon: Sparkles, label: "AI Assistant" },
+    { id: "history" as DesignTool, icon: Clock, label: "History" },
   ];
 
   // Optional tools
@@ -157,7 +157,7 @@ export function FloatingActionBar() {
   }, [hoveredTool, isMinimized, allTools]);
 
   // Handle tool selection
-  const handleToolClick = (toolId: DesignModeTool) => {
+  const handleToolClick = (toolId: DesignTool) => {
     setActiveTool(toolId);
   };
 
@@ -178,7 +178,8 @@ export function FloatingActionBar() {
       transition={springConfig}
       className={cn(
         "fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50",
-        "transition-all duration-300"
+        "transition-all duration-300",
+        "design-mode-ui"
       )}
       onMouseEnter={() => {
         if (isAutoHidden) {

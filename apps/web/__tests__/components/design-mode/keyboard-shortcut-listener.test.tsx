@@ -1,11 +1,11 @@
 import React from "react";
 import { render, fireEvent } from "@testing-library/react";
-import { KeyboardShortcutListener } from "@/components/design-mode/keyboard-shortcut-listener";
-import { useDesignMode } from "@/contexts/design-mode-context";
+import { KeyboardShortcutListener } from "@/components/design-mode/components/keyboard-shortcut-listener";
+import { useDesignMode } from "@/components/design-mode/contexts/design-mode-context";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 
 // Mock the dependencies
-jest.mock("@/contexts/design-mode-context", () => ({
+jest.mock("@/components/design-mode/contexts/design-mode-context", () => ({
   useDesignMode: jest.fn(),
 }));
 
