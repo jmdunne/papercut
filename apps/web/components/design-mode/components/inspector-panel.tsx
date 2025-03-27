@@ -23,6 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Z_INDEX } from "@/lib/constants";
 
 /**
  * InspectorPanel displays the properties of the selected element and
@@ -62,6 +63,7 @@ export function InspectorPanel() {
     <div
       data-testid="inspector-panel"
       className="fixed top-20 right-6 w-80 bg-background/95 backdrop-blur-lg border border-border rounded-lg shadow-xl max-h-[calc(100vh-160px)] flex flex-col overflow-hidden z-[9999] design-mode-ui"
+      style={{ zIndex: Z_INDEX.INSPECTOR_PANEL }}
     >
       {/* Header with element path */}
       <div className="p-3 border-b border-border flex flex-col">

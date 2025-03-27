@@ -5,12 +5,9 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { DynamicBackground } from "@/components/background/dynamic-background";
 import { DesignModeProvider } from "@/components/design-mode/contexts/design-mode-context";
 import { KeyboardShortcutListener } from "@/components/design-mode/components/keyboard-shortcut-listener";
-import { FloatingActionBar } from "@/components/design-mode/components/floating-action-bar";
 import { OnboardingProvider } from "@/components/onboarding/onboarding-context";
 import { OnboardingOverlay } from "@/components/onboarding/onboarding-overlay";
-import { SelectionHighlighter } from "@/components/design-mode/components/selection-highlighter";
-import { InspectorPanel } from "@/components/design-mode/components/inspector-panel";
-import { ElementSelectionHandler } from "@/components/design-mode/components/element-selection-handler";
+import { DesignModeUILayer } from "@/components/design-mode/components/design-mode-ui-layer";
 
 export default function RootLayout({
   children,
@@ -25,12 +22,13 @@ export default function RootLayout({
             <OnboardingProvider>
               <DynamicBackground />
               <KeyboardShortcutListener />
-              <FloatingActionBar />
-              <SelectionHighlighter />
-              <InspectorPanel />
-              <ElementSelectionHandler />
-              <OnboardingOverlay />
+
+              {/* Page content rendered first in DOM order */}
               {children}
+
+              {/* Consolidated UI layers that render through portals */}
+              <DesignModeUILayer />
+              <OnboardingOverlay />
             </OnboardingProvider>
           </DesignModeProvider>
         </ThemeProvider>

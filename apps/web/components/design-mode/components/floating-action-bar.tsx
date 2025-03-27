@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DesignTool } from "@/components/design-mode/contexts/design-mode-context";
+import { Z_INDEX } from "@/lib/constants";
 
 /**
  * Floating Action Bar (FAB) component that appears at the bottom of the screen
@@ -181,6 +182,7 @@ export function FloatingActionBar() {
         "transition-all duration-300",
         "design-mode-ui"
       )}
+      style={{ zIndex: Z_INDEX.FLOATING_TOOLS }}
       onMouseEnter={() => {
         if (isAutoHidden) {
           setIsAutoHidden(false);

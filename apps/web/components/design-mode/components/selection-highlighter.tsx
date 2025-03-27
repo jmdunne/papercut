@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useDesignMode } from "@/components/design-mode/contexts/design-mode-context";
 import { cn } from "@/lib/utils";
+import { Z_INDEX } from "@/lib/constants";
 
 /**
  * SelectionHighlighter displays a highlight box around the selected element
@@ -102,6 +103,7 @@ export function SelectionHighlighter() {
         left: `${position.left}px`,
         width: `${position.width}px`,
         height: `${position.height}px`,
+        zIndex: Z_INDEX.SELECTION_OVERLAY,
       }}
     >
       {/* Highlight border */}
